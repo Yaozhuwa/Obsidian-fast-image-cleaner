@@ -1,8 +1,11 @@
 import NathanImageCleaner from "src/main";
-import { TFile, Notice, TFolder } from "obsidian";
+import { TFile, Notice, TFolder, MarkdownView, Editor} from "obsidian";
 import { imageReferencedState } from "./enum/imageReferencedState";
 import { resultDetermineImageDeletion as deletionResult } from "./interface/resultDetermineImageDeletion";
-import { LogsModal } from "./modals";
+import * as fs from 'fs';
+import { exec, execSync } from 'child_process';
+import { existsSync } from 'fs';
+
 const SUCCESS_NOTICE_TIMEOUT = 1800;
 export interface metaData {
 	[propName: string]: {
@@ -21,104 +24,8 @@ export interface processFunc {
 export interface params {
 	[param: string]: any;
 }
-/**
- * File contents processing class
- */
-export class fileContentsProcess {
-	#processFunc: processFunc;
-	#delay: number = 1000;
-	#metaData: metaData;
-	#line: string;
-	constructor(
-		callback: processFunc, // function for core-logic for  text processsing
-		metaData: metaData = {},
-		delay: number = 1000 // if no value is passed, set 1000 as default
-	) {
-		this.#processFunc = callback;
-		this.#delay = delay;
-		this.#metaData = metaData as metaData;
-	}
 
-	async process(params: params, plugin?: NathanImageCleaner): Promise<any> {
-		const activeFile: TFile = app.workspace.getActiveFile() as TFile;
-		const fileContents = (await app.vault.read(activeFile)).split("\n");
-		let newFileContents: string[] = [];
-		this.resetMetaData();
-		for (let index = 0; index < fileContents.length; index++) {
-			this.#line = fileContents[index];
-			let result = (await this.#processFunc(
-				this.#line,
-				this.#metaData,
-				plugin as NathanImageCleaner,
-				params as params,
-				index as number
-			)) as any;
-			newFileContents.push(result);
-		}
-		newFileContents = newFileContents.filter(
-			(item) => item != "DELETE_LINE"
-		);
-		app.vault.adapter.write(activeFile.path, newFileContents.join("\n"));
-		setTimeout(() => {
-			return "";
-		}, this.#delay);
-	}
-	resetMetaData(): void {
-		for (const prop in this.#metaData) {
-			if (this.#metaData[prop].value instanceof Array) {
-				// Reset all values in prop.value preventing heading number increment
-				this.#metaData[prop].value = this.#metaData[prop].value.map(
-					(item: any) => {
-						if (typeof item === "number") {
-							return 0;
-						} else if (typeof item === "string") {
-							return "";
-						}
-						return item;
-					}
-				);
-			}
-			if (typeof this.#metaData[prop].value === "number") {
-				this.#metaData[prop].value = 0;
-			}
-			if (typeof this.#metaData[prop].value === "string") {
-				this.#metaData[prop].value = "0";
-			}
-			if (typeof this.#metaData[prop].value === "boolean") {
-				this.#metaData[prop].value = false;
-			}
-		}
-	}
-}
-/**
- * 文章中单行图片链接数量
- * 1. 一行中仅有一个图片引用链接 (解决)
- * 2. 一行中由多个图片引用链接 （未解决）
- */
-export const delImgRefLink = new fileContentsProcess(
-	async (line, metaData, Plugin, params) => {
-		let imgBasePath = params.FileBaseName as string;
-		const mdLinkRegex = /!\[.*?\]\((?<imgPath>.*?)\.(?:[a-zA-Z0-9]+)\)/;
-		const wikiLinkRegex = /!\[\[.+\.(?:[a-zA-Z0-9]+)(?: *\| *.*?)*\]\]/;
-		if (mdLinkRegex.test(line)) {
-			let match = line.match(mdLinkRegex) as RegExpExecArray;
-			if (match[0].includes("%20")) {
-				if (line.replace(/%20/g, " ").includes(imgBasePath)) {
-					return "DELETE_LINE";
-				} else {
-					return line;
-				}
-			} else if (line.includes(imgBasePath)) {
-				return "DELETE_LINE";
-			} else {
-				return line;
-			}
-		} else if (line.includes(imgBasePath) && wikiLinkRegex.test(line)) {
-			return "DELETE_LINE";
-		}
-		return line;
-	}
-);
+
 /**
  *
  * @param FileBaseName format is as name.extension
@@ -164,6 +71,53 @@ export const isRemove = (
 	}
 	return result;
 };
+
+/**
+ *
+ * @param target_file 要删除的目标文件
+ * @param currentMd	当前所在的 markdown 文件
+ * @returns
+ */
+export const checkReferenceInfo = (
+	target_file: TFile,
+	currentMd: TFile
+): { state: number; mdPath: string[] } => {
+
+	const resolvedLinks = app.metadataCache.resolvedLinks;
+	let CurMDPath: string;
+	// // record the state of image referenced and all paths of markdown referencing to the image
+	let result: deletionResult = {
+		state: 0,
+		mdPath: [],
+	};
+	let refNum = 0; // record the number of note referencing to the image.
+	for (const [mdFile, links] of Object.entries(resolvedLinks)) {
+		if (currentMd.path === mdFile) {
+			CurMDPath = currentMd.path;
+			result.mdPath.unshift(CurMDPath);
+		}
+		for (const [filePath, nr] of Object.entries(links)) {
+			if (target_file?.path === filePath) {
+				refNum++;
+				// if the deleted target image referenced by current note more than once
+				if (nr > 1) {
+					result.state = imageReferencedState.MORE;
+					result.mdPath.push(mdFile);
+					return result;
+				}
+				result.mdPath.push(mdFile);
+			}
+		}
+	}
+	if (refNum > 1) {
+		result.state = imageReferencedState.MUTIPLE;
+	} else {
+		result.state = imageReferencedState.ONCE;
+	}
+	return result;
+};
+
+
 /**
  * 	通过当前md文件和图片名 获取 图片文件对象   ，类型为TFile
  * 
@@ -195,28 +149,28 @@ export const getFileByBaseName = (
 		}
 	}
 };
+
 /**
- * 删除curMd文件 （附件引用链接，附件文件）
+ * 删除指定附件文件
  *
- * @param FileBaseName  curMd基本名称 name.extension
+ * @param file  指定的附件文件
  * @param plugin 当前插件
  * @returns
  */
-export const ClearAttachment = async (
-	FileBaseName: string,
+export const PureClearAttachment = async (
+	file: TFile,
+	target_type: string,
 	plugin: NathanImageCleaner
 ) => {
 	const deleteOption = plugin.settings.deleteOption;
-	const currentMd = app.workspace.getActiveFile() as TFile;
-	const file = getFileByBaseName(currentMd, FileBaseName) as TFile;
-	await delImgRefLink.process({ FileBaseName });
 	const delFileFolder = onlyOneFileExists(file);
 	const fileFolder = getFileParentFolder(file) as TFolder;
+	let name = target_type=='img' ? 'Image' : 'File';
 	try {
 		if (deleteOption === ".trash") {
 			await app.vault.trash(file, false);
 			new Notice(
-				"Image moved to Obsidian Trash !",
+				name + " moved to Obsidian Trash !",
 				SUCCESS_NOTICE_TIMEOUT
 			);
 			if (delFileFolder) {
@@ -225,14 +179,14 @@ export const ClearAttachment = async (
 			}
 		} else if (deleteOption === "system-trash") {
 			await app.vault.trash(file, true);
-			new Notice("Image moved to System Trash !", SUCCESS_NOTICE_TIMEOUT);
+			new Notice(name + " moved to System Trash !", SUCCESS_NOTICE_TIMEOUT);
 			if (delFileFolder) {
 				await app.vault.trash(fileFolder, true);
 				new Notice("Attachment folder have been deleted!", 3000);
 			}
 		} else if (deleteOption === "permanent") {
 			await app.vault.delete(file);
-			new Notice("Image deleted Permanently !", SUCCESS_NOTICE_TIMEOUT);
+			new Notice(name + " deleted Permanently !", SUCCESS_NOTICE_TIMEOUT);
 			if (delFileFolder) {
 				await app.vault.delete(fileFolder, true);
 				new Notice("Attachment folder have been deleted!", 3000);
@@ -240,38 +194,139 @@ export const ClearAttachment = async (
 		}
 	} catch (error) {
 		console.error(error);
-		new Notice("Faild to delelte the image !", SUCCESS_NOTICE_TIMEOUT);
+		new Notice("Faild to delelte the " + name + "!", SUCCESS_NOTICE_TIMEOUT);
 	}
 };
-/**
- * 处理图片删除
- *
- * @param FileBaseName
- * @param currentMd
- */
-export const handlerDelFile = (
+
+
+export const handlerDelFileNew = (
+	FileBaseName: string,
+	currentMd: TFile,
+	plugin: NathanImageCleaner,
+	target_type: string,
+	target_line: number,
+	target_ch: number
+) => {
+	let logs: string[];
+	let modal;
+	const target_file = getFileByBaseName(currentMd, FileBaseName) as TFile;
+	const refInfo = checkReferenceInfo(target_file, currentMd);
+	let state = refInfo.state;
+	switch (state) {
+		case 0:
+			// clear attachment directly
+			deleteCurTargetLink(FileBaseName, plugin, target_type, target_line, target_ch);
+			PureClearAttachment(target_file,target_type, plugin);
+			break;
+		case 1:
+		case 2:
+			deleteCurTargetLink(FileBaseName, plugin, target_type, target_line, target_ch);
+			// referenced by eithor only note or other mutiple notes more than once
+			logs = refInfo.mdPath as string[];
+			// 由于有别的引用，所以只删除当前的引用链接而不删除文件
+			new Notice("As other references exist, we have only deleted the current reference link without removing the actual file.", 3000);
+		default:
+			break;
+	}
+}
+
+// 如果是 type 是 "img"，就准确删除图片引用链接的部分，如果是其他类型，直接删除整行
+// target_line （1-based） 和 target_ch 是指示附件所在的位置
+export const deleteCurTargetLink = (
+	file_base_name: string,
+	plugin: NathanImageCleaner,
+	target_type: string,
+	target_line: number,
+	target_ch: number
+) => {
+	const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor as Editor;
+	let offset = editor.lineCount()>target_line ? 1 : 0;
+	let line_text = editor.getLine(target_line-1);
+	if (target_type != 'img')
+	{
+		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
+		return;
+	}
+	// 如果是图片，就准确删除图片引用链接的部分
+	let match_context = line_text.substring(0, target_ch);
+	console.log('123.substring(0,2):',"123".substring(0,2))
+	console.log('match_context', match_context.replace(' ', '%20'))
+	let regWikiLink = /\!\[\[[^\[\]]*?\]\]$/g;
+    let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)$/g;
+	let matched_link = "";
+	console.log('match_context.charAt(match_context.length-1)', match_context.charAt(match_context.length-1))
+	if (match_context.charAt(match_context.length-1) == ']'){
+		// WIKI LINK
+		let match = match_context.match(regWikiLink);
+		matched_link = match ? match[0] : '';
+	}
+	else if (match_context.charAt(match_context.length-1) == ')'){
+		// MD LINK
+		let match = match_context.match(regMdLink);
+		matched_link = match ? match[0] : '';
+	}
+	else{
+		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
+		editor.focus();
+		return;
+	}
+	let new_line = match_context.substring(0, match_context.length-matched_link.length)+line_text.substring(target_ch);
+	if (new_line != ''){
+		editor.setLine(target_line-1, new_line);
+	}
+	else{
+		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
+	}
+	editor.focus();
+}
+
+// copy img file to clipboard
+export const handlerCopyFile = async (
 	FileBaseName: string,
 	currentMd: TFile,
 	plugin: NathanImageCleaner
 ) => {
-	let logs: string[];
-	let modal;
-	const state: number = isRemove(FileBaseName).state;
-	switch (state) {
-		case 0:
-			// clear attachment directly
-			ClearAttachment(FileBaseName, plugin);
-			break;
-		case 1:
-		case 2:
-			// referenced by eithor only note or other mutiple notes more than once
-			logs = isRemove(FileBaseName).mdPath as string[];
-			modal = new LogsModal(currentMd, state, FileBaseName, logs, app);
-			modal.open();
-		default:
-			break;
+	const file = getFileByBaseName(currentMd, FileBaseName) as TFile;
+	const fileFolder = getFileParentFolder(file) as TFolder;
+	const basePath = (file.vault.adapter as any).basePath
+	const file_ab_path = basePath + '/' + file.path
+
+	try{
+		copyFileToClipboardCMD(file_ab_path);
+		new Notice("Copied to clipboard !", SUCCESS_NOTICE_TIMEOUT);
 	}
-};
+	catch (error) {
+		console.error(error);
+		new Notice("Faild to copy the file !", SUCCESS_NOTICE_TIMEOUT);
+	}
+
+	// copy file to clipboard
+	// try {
+		// console.log(file_ab_path)
+
+		// 先查看剪贴板内容
+		// const clipboardItems = await navigator.clipboard.read();
+		// console.log(clipboardItems[0])
+		// let tp = clipboardItems[0].types[0]
+		// console.log(tp, clipboardItems[0].getType(tp))
+
+		// 复制图片，但是只能以PNG形式粘贴，即使复制的是GIF或者JPG
+		// const image = fs.readFileSync(file_ab_path);
+		// let file_type: string = 'image/png';
+		// const blob = new Blob([image], { type: file_type });
+		// const item = new ClipboardItem({ [file_type]: blob });
+		// await navigator.clipboard.write([item]);
+
+	// 	copyFileToClipboardCMD(file_ab_path);
+
+	// 	new Notice("Copied to clipboard !", SUCCESS_NOTICE_TIMEOUT);
+	// }
+	// catch (error) {
+	// 	console.error(error);
+	// 	new Notice("Faild to copy the file !", SUCCESS_NOTICE_TIMEOUT);
+	// }
+}
+
 /**
  *
  * @param file target deleted file
@@ -294,3 +349,50 @@ const onlyOneFileExists = (file: TFile): boolean => {
 	const fileFolder = getFileParentFolder(file) as TFolder;
 	return fileFolder.children.length === 1;
 };
+
+
+// 调用系统命令复制文件到系统剪贴板
+function copyFileToClipboardCMD(filePath: string) {
+
+	if (!existsSync(filePath)) {
+        console.error(`File ${filePath} does not exist`);
+        return;
+    }
+
+    const callback = (error: Error | null, stdout: string, stderr: string) => {
+        if (error) {
+			new Notice(`Error executing command: ${error.message}`, SUCCESS_NOTICE_TIMEOUT);
+        }
+    };
+
+    if (process.platform === 'darwin') {
+		// 解决方案1: 会调出Finder，产生瞬间的窗口，但是该复制操作完全是系统级别的，没有任何限制
+		execSync(`open -R "${filePath}"`);
+        execSync(`osascript -e 'tell application "System Events" to keystroke "c" using command down'`);
+        execSync(`osascript -e 'tell application "System Events" to keystroke "w" using command down'`);
+		execSync(`open -a "Obsidian.app"`);
+
+		// ----------------------------------------------
+		// 测试方案2: 模拟Shift键按下，但是失败了
+		// execSync(`osascript -e 'tell application "System Events" to key down shift'`);
+		// execSync(`osascript -e 'delay 0.05'`);
+		// execSync(`osascript -e 'tell application "System Events" to key up shift'`);
+		// ----------------------------------------------
+
+		// ----------------------------------------------
+		// 另一种解决方案，不会调出Finder，但是复制的文件无法粘贴到word或者微信中
+		// const appleScript = `
+		// 	on run args
+		// 		set the clipboard to POSIX file (first item of args)
+		// 	end
+		// 	`;
+		// exec(`osascript -e '${appleScript}' "${filePath}"`, callback);
+		// ----------------------------------------------
+
+    } else if (process.platform === 'linux') {
+		// 目前方案无效
+        exec(`xclip -selection c < ${filePath}`, callback);
+    } else if (process.platform === 'win32') {
+        exec(`powershell -command "Set-Clipboard -Path '${filePath}'"`, callback);
+    }
+}

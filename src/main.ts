@@ -1,10 +1,11 @@
-import { Menu, MenuItem, Notice, Plugin, TFile } from "obsidian";
+import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView } from "obsidian";
 import { addCommand } from "./config/addCommand-config";
 import { NathanImageCleanerSettingsTab } from "./settings";
 import { NathanImageCleanerSettings, DEFAULT_SETTINGS } from "./settings";
 import * as Util from "./util";
 import { getMouseEventTarget } from "./utils/handlerEvent";
 import { DeleteAllLogsModal } from "./modals/deletionPrompt";
+import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
 
 interface Listener {
 	(this: Document, ev: Event): any;
@@ -106,6 +107,7 @@ export default class NathanImageCleaner extends Plugin {
 		);
 	}
 
+
 	/**
 	 * 设置菜单按钮，并设置点击事件
 	 *
@@ -113,17 +115,32 @@ export default class NathanImageCleaner extends Plugin {
 	 * @param FileBaseName
 	 * @param currentMd
 	 */
-	addMenu = (menu: Menu, FileBaseName: string, currentMd: TFile) => {
+	addMenuExtended = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type:string, target_line:number, target_ch:number) => {
 		menu.addItem((item: MenuItem) =>
 			item
 				.setIcon("trash-2")
-				.setTitle("clear file and referenced link")
-				.setChecked(true)
+				.setTitle("Clear file and referenced link")
+				// .setChecked(true)
 				.onClick(async () => {
 					try {
-						Util.handlerDelFile(FileBaseName, currentMd, this);
+						// Util.handlerDelFile(FileBaseName, currentMd, this);
+						Util.handlerDelFileNew(FileBaseName, currentMd, this, target_type, target_line, target_ch);
 					} catch {
 						new Notice("Error, could not clear the file!");
+					}
+				})
+		);
+
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("copy")
+				.setTitle("Copy file to clipboard")
+				// .setChecked(true)
+				.onClick(async () => {
+					try {
+						Util.handlerCopyFile(FileBaseName, currentMd, this);
+					} catch {
+						new Notice("Error, could not copy the file!");
 					}
 				})
 		);
@@ -134,7 +151,9 @@ export default class NathanImageCleaner extends Plugin {
 	 */
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
+		console.log(target.parentElement)
 		const nodeType = target.localName;
+		console.log('target, localName', target, target.localName)
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
 
@@ -144,18 +163,44 @@ export default class NathanImageCleaner extends Plugin {
 		let imgPath = "";
 		const delTargetType = ["img", "iframe", "video", "div", "audio"];
 
+		// if (delTargetType.includes(nodeType)) {
+		// 	const image = (target as HTMLImageElement).currentSrc;
+		// 	// const url = new URL(image);
+		// 	// const protocol = url.protocol;
+		// 	console.log("image", image);
+		// }
+
+		if (!delTargetType.includes(nodeType)) return;
+		
+		const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+		//  @ts-expect-error, not typed
+		const editorView = editor.cm as EditorView;
+		const target_pos = editorView.posAtDOM(target);
+		const prev_pos = editorView.posAtDOM(target.parentElement?.previousElementSibling as HTMLElement);
+		const next_pos = editorView.posAtDOM(target.parentElement?.nextElementSibling as HTMLElement);
+		let prev_target_line = editorView.state.doc.lineAt(prev_pos);
+		// console.log('prev target line information: line-content, line-number(1-based), target.ch');
+		// console.log(prev_target_line.text, prev_target_line.number, prev_pos-prev_target_line.from)
+
+		let target_line = editorView.state.doc.lineAt(target_pos);
+		console.log('target line information: line-content, line-number(1-based), target.ch');
+		console.log(target_line.text, target_line.number, target_pos-target_line.from)
+
+		let next_target_line = editorView.state.doc.lineAt(next_pos);
+		// console.log('next target line information: line-content, line-number(1-based), target.ch');
+		// console.log(next_target_line.text, next_target_line.number, next_pos-next_target_line.from)
+
 		if (delTargetType.includes(nodeType)) {
 			imgPath = target.parentElement?.getAttribute("src") as string;
+			console.log(imgPath)
 			const FileBaseName = (
 				imgPath?.match(RegFileBaseName) as string[]
 			)[1];
-			if (target.className === "file-embed-title") {
-				this.addMenu(menu, FileBaseName, currentMd);
-			}
-			this.addMenu(menu, FileBaseName, currentMd);
+			// console.log("FileBaseName", FileBaseName);
+			this.addMenuExtended(menu, FileBaseName, currentMd, nodeType, target_line.number, target_pos-target_line.from);
 		}
 		this.registerEscapeButton(menu);
-		menu.showAtPosition({ x: event.pageX, y: event.pageY - 40 });
+		menu.showAtPosition({ x: event.pageX, y: event.pageY });
 		this.app.workspace.trigger("NL-fast-file-cleaner:contextmenu", menu);
 	}
 
