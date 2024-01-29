@@ -5,72 +5,12 @@ import { resultDetermineImageDeletion as deletionResult } from "./interface/resu
 import * as fs from 'fs';
 import { exec, execSync } from 'child_process';
 import { existsSync } from 'fs';
+import {
+	ElectronWindow, FileSystemAdapterWithInternalApi,
+	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
+  } from "./helpers"
 
 const SUCCESS_NOTICE_TIMEOUT = 1800;
-export interface metaData {
-	[propName: string]: {
-		value: any;
-	};
-}
-export interface processFunc {
-	(
-		line: string,
-		metaData: metaData,
-		plugin: NathanImageCleaner,
-		params: params,
-		index?: number
-	): Promise<string | void>;
-}
-export interface params {
-	[param: string]: any;
-}
-
-
-/**
- *
- * @param FileBaseName format is as name.extension
- * @returns
- */
-export const isRemove = (
-	FileBaseName: string
-): { state: number; mdPath: string[] } => {
-	const currentMd = app.workspace.getActiveFile() as TFile;
-	const resolvedLinks = app.metadataCache.resolvedLinks;
-	const deletedTargetFile = getFileByBaseName(currentMd, FileBaseName) as
-		| TFile
-		| undefined;
-	let CurMDPath: string;
-	// // record the state of image referenced and all paths of markdown referencing to the image
-	let result: deletionResult = {
-		state: 0,
-		mdPath: [],
-	};
-	let refNum = 0; // record the number of note referencing to the image.
-	for (const [mdFile, links] of Object.entries(resolvedLinks)) {
-		if (currentMd.path === mdFile) {
-			CurMDPath = currentMd.path;
-			result.mdPath.unshift(CurMDPath);
-		}
-		for (const [filePath, nr] of Object.entries(links)) {
-			if (deletedTargetFile?.path === filePath) {
-				refNum++;
-				// if the deleted target image referenced by current note more than once
-				if (nr > 1) {
-					result.state = imageReferencedState.MORE;
-					result.mdPath.push(mdFile);
-					return result;
-				}
-				result.mdPath.push(mdFile);
-			}
-		}
-	}
-	if (refNum > 1) {
-		result.state = imageReferencedState.MUTIPLE;
-	} else {
-		result.state = imageReferencedState.ONCE;
-	}
-	return result;
-};
 
 /**
  *
@@ -216,7 +156,7 @@ export const handlerDelFileNew = (
 		case 0:
 			// clear attachment directly
 			deleteCurTargetLink(FileBaseName, plugin, target_type, target_line, target_ch);
-			PureClearAttachment(target_file,target_type, plugin);
+			PureClearAttachment(target_file, target_type, plugin);
 			break;
 		case 1:
 		case 2:
@@ -249,12 +189,11 @@ export const deleteCurTargetLink = (
 	}
 	// 如果是图片，就准确删除图片引用链接的部分
 	let match_context = line_text.substring(0, target_ch);
-	console.log('123.substring(0,2):',"123".substring(0,2))
-	console.log('match_context', match_context.replace(' ', '%20'))
+	// console.log('match_context', match_context.replace(' ', '%20'))
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]$/g;
     let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)$/g;
 	let matched_link = "";
-	console.log('match_context.charAt(match_context.length-1)', match_context.charAt(match_context.length-1))
+	// console.log('match_context.charAt(match_context.length-1)', match_context.charAt(match_context.length-1))
 	if (match_context.charAt(match_context.length-1) == ']'){
 		// WIKI LINK
 		let match = match_context.match(regWikiLink);
@@ -271,7 +210,7 @@ export const deleteCurTargetLink = (
 		return;
 	}
 	let new_line = match_context.substring(0, match_context.length-matched_link.length)+line_text.substring(target_ch);
-	if (new_line != ''){
+	if (new_line != '' || /^\s*$/.test(new_line)){
 		editor.setLine(target_line-1, new_line);
 	}
 	else{
@@ -362,6 +301,8 @@ function copyFileToClipboardCMD(filePath: string) {
     const callback = (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
 			new Notice(`Error executing command: ${error.message}`, SUCCESS_NOTICE_TIMEOUT);
+			console.error(`Error executing command: ${error.message}`);
+			return;
         }
     };
 
@@ -373,7 +314,7 @@ function copyFileToClipboardCMD(filePath: string) {
 		execSync(`open -a "Obsidian.app"`);
 
 		// ----------------------------------------------
-		// 测试方案2: 模拟Shift键按下，但是失败了
+		// 测试切换输入法方案: 模拟Shift键按下，但是失败了
 		// execSync(`osascript -e 'tell application "System Events" to key down shift'`);
 		// execSync(`osascript -e 'delay 0.05'`);
 		// execSync(`osascript -e 'tell application "System Events" to key up shift'`);
@@ -390,8 +331,10 @@ function copyFileToClipboardCMD(filePath: string) {
 		// ----------------------------------------------
 
     } else if (process.platform === 'linux') {
-		// 目前方案无效
-        exec(`xclip -selection c < ${filePath}`, callback);
+		// 目前方案
+		// xclip -selection clipboard -t $(file --mime-type -b /path/to/your/file) -i /path/to/your/file
+        // exec(`xclip -selection c < ${filePath}`, callback);
+		exec(`xclip -selection clipboard -t $(file --mime-type -b "${filePath}") -i "${filePath}"`, callback);
     } else if (process.platform === 'win32') {
         exec(`powershell -command "Set-Clipboard -Path '${filePath}'"`, callback);
     }

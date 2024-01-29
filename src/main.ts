@@ -1,4 +1,4 @@
-import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView } from "obsidian";
+import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView, Platform } from "obsidian";
 import { addCommand } from "./config/addCommand-config";
 import { NathanImageCleanerSettingsTab } from "./settings";
 import { NathanImageCleanerSettings, DEFAULT_SETTINGS } from "./settings";
@@ -6,6 +6,10 @@ import * as Util from "./util";
 import { getMouseEventTarget } from "./utils/handlerEvent";
 import { DeleteAllLogsModal } from "./modals/deletionPrompt";
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
+import {
+	ElectronWindow, FileSystemAdapterWithInternalApi,
+	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
+} from "./helpers"
 
 interface Listener {
 	(this: Document, ev: Event): any;
@@ -30,7 +34,7 @@ export default class NathanImageCleaner extends Plugin {
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (file instanceof TFile) {
 					const addMenuItem = (item: MenuItem) => {
-						item.setTitle("Delete the file and its all attachments")
+						item.setTitle("Remove the file and its attachments")
 							.setIcon("trash-2")
 							.setSection("danger");
 						item.onClick(async () => {
@@ -50,20 +54,9 @@ export default class NathanImageCleaner extends Plugin {
 		console.log("Fast file Cleaner plugin unloaded...");
 	}
 
-	onElement(
-		el: Document,
-		event: keyof HTMLElementEventMap,
-		selector: string,
-		listener: Listener,
-		options?: { capture?: boolean }
-	) {
-		el.on(event, selector, listener, options);
-		return () => el.off(event, selector, listener, options);
-	}
-
 	registerDocument(document: Document) {
 		this.register(
-			this.onElement(
+			onElement(
 				document,
 				"contextmenu" as keyof HTMLElementEventMap,
 				"img, iframe, video, div.file-embed-title,audio",
@@ -92,7 +85,7 @@ export default class NathanImageCleaner extends Plugin {
 	}
 	registerEscapeButton(menu: Menu, document: Document = activeDocument) {
 		menu.register(
-			this.onElement(
+			onElement(
 				document,
 				"keydown" as keyof HTMLElementEventMap,
 				"*",
@@ -115,11 +108,11 @@ export default class NathanImageCleaner extends Plugin {
 	 * @param FileBaseName
 	 * @param currentMd
 	 */
-	addMenuExtended = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type:string, target_line:number, target_ch:number) => {
+	addMenuExtendedSourceMode = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type: string, target_line: number, target_ch: number) => {
 		menu.addItem((item: MenuItem) =>
 			item
 				.setIcon("trash-2")
-				.setTitle("Clear file and referenced link")
+				.setTitle("Clear file and associated link")
 				// .setChecked(true)
 				.onClick(async () => {
 					try {
@@ -130,6 +123,21 @@ export default class NathanImageCleaner extends Plugin {
 					}
 				})
 		);
+		this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
+	};
+
+
+	/**
+	 * 设置菜单按钮，并设置点击事件
+	 *
+	 * @param menu
+	 * @param FileBaseName
+	 * @param currentMd
+	 */
+	addMenuExtendedPreviewMode = (menu: Menu, FileBaseName: string, currentMd: TFile) => {
+		const file = Util.getFileByBaseName(currentMd, FileBaseName) as TFile;
+		const basePath = (file.vault.adapter as any).basePath;
+		const relativeFilePath = file.path;
 
 		menu.addItem((item: MenuItem) =>
 			item
@@ -144,61 +152,82 @@ export default class NathanImageCleaner extends Plugin {
 					}
 				})
 		);
+		menu.addItem((item: MenuItem) => item
+			.setIcon("arrow-up-right")
+			.setTitle("Open in default app")
+			.onClick(() => (this.app as AppWithDesktopInternalApi).openWithDefaultApp(file.path))
+		);
+		menu.addItem((item: MenuItem) => item
+			.setIcon("arrow-up-right")
+			.setTitle(Platform.isMacOS ? "Reveal in finder" : "Show in system explorer")
+			.onClick(() => {
+				(this.app as AppWithDesktopInternalApi).showInFolder(file.path);
+			})
+		);
+		menu.addItem((item: MenuItem) => item
+			.setIcon("folder")
+			.setTitle("Reveal file in navigation")
+			.onClick(() => {
+				const abstractFilePath = this.app.vault.getAbstractFileByPath(file.path);
+				(this.app as any).internalPlugins.getEnabledPluginById("file-explorer").revealInFolder(abstractFilePath);
+			})
+		);
 	};
+
 
 	/**
 	 * 鼠标点击事件
 	 */
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
-		console.log(target.parentElement)
-		const nodeType = target.localName;
-		console.log('target, localName', target, target.localName)
+		const curTargetType = target.localName;
+		// console.log(target.parentElement)
+		// console.log('target, localName', target, target.localName)
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
 
-		const menu = new Menu();
-		// target deleted img file base name
 		const RegFileBaseName = new RegExp(/\/?([^\/\n]+\.\w+)/, "m");
-		let imgPath = "";
-		const delTargetType = ["img", "iframe", "video", "div", "audio"];
+		let target_name = target.parentElement?.getAttribute("src") as string;
+		const FileBaseName = (target_name?.match(RegFileBaseName) as string[])[1];
+		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
-		// if (delTargetType.includes(nodeType)) {
-		// 	const image = (target as HTMLImageElement).currentSrc;
-		// 	// const url = new URL(image);
-		// 	// const protocol = url.protocol;
-		// 	console.log("image", image);
-		// }
+		const menu = new Menu();
 
-		if (!delTargetType.includes(nodeType)) return;
-		
-		const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-		//  @ts-expect-error, not typed
-		const editorView = editor.cm as EditorView;
-		const target_pos = editorView.posAtDOM(target);
-		const prev_pos = editorView.posAtDOM(target.parentElement?.previousElementSibling as HTMLElement);
-		const next_pos = editorView.posAtDOM(target.parentElement?.nextElementSibling as HTMLElement);
-		let prev_target_line = editorView.state.doc.lineAt(prev_pos);
-		// console.log('prev target line information: line-content, line-number(1-based), target.ch');
-		// console.log(prev_target_line.text, prev_target_line.number, prev_pos-prev_target_line.from)
+		if (!SupportedTargetType.includes(curTargetType)) return;
 
-		let target_line = editorView.state.doc.lineAt(target_pos);
-		console.log('target line information: line-content, line-number(1-based), target.ch');
-		console.log(target_line.text, target_line.number, target_pos-target_line.from)
-
-		let next_target_line = editorView.state.doc.lineAt(next_pos);
-		// console.log('next target line information: line-content, line-number(1-based), target.ch');
-		// console.log(next_target_line.text, next_target_line.number, next_pos-next_target_line.from)
-
-		if (delTargetType.includes(nodeType)) {
-			imgPath = target.parentElement?.getAttribute("src") as string;
-			console.log(imgPath)
-			const FileBaseName = (
-				imgPath?.match(RegFileBaseName) as string[]
-			)[1];
-			// console.log("FileBaseName", FileBaseName);
-			this.addMenuExtended(menu, FileBaseName, currentMd, nodeType, target_line.number, target_pos-target_line.from);
+		// 判断当前是否是阅读模式
+		// console.log('Mode:', this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode());
+		if (this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview") {
+			if (SupportedTargetType.includes(curTargetType)) {
+				// console.log("FileBaseName", FileBaseName);
+				this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
+			}
 		}
+		else{
+			const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+			//  @ts-expect-error, not typed
+			const editorView = editor.cm as EditorView;
+			const target_pos = editorView.posAtDOM(target);
+			// const prev_pos = editorView.posAtDOM(target.parentElement?.previousElementSibling as HTMLElement);
+			// const next_pos = editorView.posAtDOM(target.parentElement?.nextElementSibling as HTMLElement);
+			// let prev_target_line = editorView.state.doc.lineAt(prev_pos);
+			// let next_target_line = editorView.state.doc.lineAt(next_pos);
+			// console.log('prev target line information: line-content, line-number(1-based), target.ch');
+			// console.log(prev_target_line.text, prev_target_line.number, prev_pos-prev_target_line.from)
+
+			let target_line = editorView.state.doc.lineAt(target_pos);
+			// console.log('target line information: line-content, line-number(1-based), target.ch');
+			// console.log(target_line.text, target_line.number, target_pos - target_line.from)
+
+			// console.log('next target line information: line-content, line-number(1-based), target.ch');
+			// console.log(next_target_line.text, next_target_line.number, next_pos-next_target_line.from)
+
+			if (SupportedTargetType.includes(curTargetType)) {
+				// console.log("FileBaseName", FileBaseName);
+				this.addMenuExtendedSourceMode(menu, FileBaseName, currentMd, curTargetType, target_line.number, target_pos - target_line.from);
+			}
+		}
+
 		this.registerEscapeButton(menu);
 		menu.showAtPosition({ x: event.pageX, y: event.pageY });
 		this.app.workspace.trigger("NL-fast-file-cleaner:contextmenu", menu);
