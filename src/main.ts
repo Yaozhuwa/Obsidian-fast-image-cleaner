@@ -186,9 +186,11 @@ export default class NathanImageCleaner extends Plugin {
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
 
-		const RegFileBaseName = new RegExp(/\/?([^\/\n]+\.\w+)/, "m");
+		const RegFileBaseName = new RegExp(/\/?([^\/\n]+\.[\w\d]+$)/, "m");
 		let target_name = target.parentElement?.getAttribute("src") as string;
-		const FileBaseName = (target_name?.match(RegFileBaseName) as string[])[1];
+		console.log('target_name', target_name)
+		const FileBaseName = (target_name?.match(RegFileBaseName) as string[])[0];
+		console.log('FileBaseName', FileBaseName)
 		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
 		const menu = new Menu();
@@ -233,12 +235,4 @@ export default class NathanImageCleaner extends Plugin {
 		this.app.workspace.trigger("NL-fast-file-cleaner:contextmenu", menu);
 	}
 
-	/* IsdeleteNoteWithItsAllAttachments = async (event: MouseEvent):Promise<boolean> => {
-		// 1.get mouse event target
-		const nav_file_title = getMouseEventTarget(event);
-		const data_path = nav_file_title.getAttribute('data-path') as string;
-		const isMdFile = data_path.match(/.*\.md/) !== null;
-		// 2.if the target is a element  representing .md file ,then delete the note
-		return isMdFile ? true : false;
-	} */
 }

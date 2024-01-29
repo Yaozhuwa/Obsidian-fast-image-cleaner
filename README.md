@@ -12,7 +12,7 @@ This plugin can fast delete image (or video, audio, file .....) attachment and r
 
 Feature intro:
 
-1. Right-click image to delete attachment and links, and folder  as appropriate.
+1. Right-click image to delete attachment and links, and folder as appropriate.
 
 2. Right-click file list to delete notes and referenced attachments, and folder  as appropriate.
 
@@ -46,27 +46,21 @@ Feature Details:
 
 > Explanation of image attachment and reference link deletion:
 >
-> 1. If the image is only referenced **once** in the current note, it will be deleted directly along with its link.
-> 2. If the image is referenced **multiple times** in the current note, a prompt window will appear asking the user to manually remove the link without deleting the image. (This is to prevent accidental deletion of the image.)
-> 3. If the image is referenced by **multiple notes**, a prompt window will appear. The user can click the `close` button to continue removing the image reference link from the **current document**, without deleting the image. (This is to prevent accidental deletion of the image.)
+> 1. If the image/file is only referenced **once** in the current note, it will be deleted directly along with its link.
+> 2. If the image/file is referenced **multiple times**, only the link to the current image/file is removed, not the actual file.
 >
 > Explanation of automatic deletion of referenced attachments when deleting a note:
 >
 > 1. If the attachment is referenced by other notes, it will not be deleted.
-> 2. If the attachment is only referenced once or multiple times in the **note to be deleted**, it will be deleted.
+> 2. If the attachment is only referenced in the **note to be deleted**, it will be deleted.
 > 3. Deletion method: using the provided command of the plugin, or by right-clicking on the file list.
 >
 > Explanation of automatic deletion of attachment folder depending on the situation:
 >
 > - The parent directory of an attachment (usually an attachment folder) will be deleted only if the attachment is referenced once in the note to be deleted, and the attachment folder is empty after the attachment is deleted.
 
-
-
 ## Install
 
-### Install from plugin marketplace
-
-Install directly from the plugin market and type `Fast Image cleaner`.
 
 ### Install from brat
 
@@ -77,16 +71,14 @@ Install directly from the plugin market and type `Fast Image cleaner`.
 -   Way 1: Go to the release page and download the '.zip' package
 -   Way 2 : Download and extract the three files (`main.js`, `manifest.json`, `style.css`) into the `/.obsidian/plugins/Obsidian-fast-image-cleaner` folder.
 
-## Use
+## Usage
 
-1. Install and enable the plug-in
-2. In LIVE MODE OR READ MODE ,right-click on image then click the menu item to delete image and clear reference link.
+1. Install and enable this plug-in
+2. In LIVE MODE OR READ MODE ,right-click on image/media/file-embed will open context-menu, where you can delete file,copy file, open file with default app, open file in finder or reveal file in navigation.
 
-### Deleted Image Destination
+### Deleted File Destination
 
-![image-20230209180042264](assets/README-images/image-20230209180042264.png)
-
-Please make sure that you select the destination for the deleted images under "Fast Images Cleaner Settings" tab. You have 3 options:
+Please make sure that you select the destination for the deleted files under this plugin's setting tab. You have 3 options:
 
 1. **Move to Obsidian Trash** - Files are going to be moved to the `.trash` under the Obsidian Vault.
 2. **Move to System Trash** - Files are going to be moved to the Operating System trash.
@@ -98,24 +90,19 @@ Please make sure that you select the destination for the deleted images under "F
 
 (1) In live preview mode
 
-![image-20230215115818647](assets/ZH-images/image-20230215115818647.png)
+<img src="assets/SourceModeMenu.png" width="600">
 
 (2)In reading mode
-![image-20230215115818647](assets/ZH-images/image-20230215115818647.png)
-
+<img src="assets/ReadingModeMenu.png" width="600">
 
 
 ## Development
 
 This plugin follows the structure of the [Obsidian Sample Plugin](https://github.com/obsidianmd/obsidian-sample-plugin) plugin, please see further details there.
 
-## Support
+## Credits
+This plugin is a modification based on the [Fast-Image-Clear plugin v0.8.1](https://github.com/martinniee/Obsidian-fast-image-cleaner). I've added functionality to copy files to the clipboard. Furthermore, the features of opening in the default app, showing in finder, and listing in the file list were all inspired by the [obsidian-copy-url-in-preview plugin](https://github.com/NomarCub/obsidian-copy-url-in-preview).
 
-❤ If you enjoy using Obsidian-Fast-Image-Cleaner, then please support my work by giving me a charge at: https://ko-fi.com/nathanielll
-
-<a href='https://ko-fi.com/J3J6IL7MY' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=3' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-
-## Plan
-
--   [ ] Enable right-clicking on any type of embedded attachment to reveal contextmenu options in the file list.
-
+References for these projects can be found at:
+https://github.com/martinniee/Obsidian-fast-image-cleaner
+https://github.com/NomarCub/obsidian-copy-url-in-preview

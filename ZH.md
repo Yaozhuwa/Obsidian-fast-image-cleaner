@@ -9,7 +9,6 @@
 // 功能已经更新,等待..........
 
 
-
 ## 特性
 
 特性简介：
@@ -17,8 +16,6 @@
 1. 右键图片删除图片附件及引用链接，视情况自动删除附件文件夹
 
 2. 文件列表中右键删除笔记同时自动删除引用的附件，视情况自动删除附件文件夹
-
-   
 
 特性详情：
 
@@ -41,9 +38,8 @@
 
 > 删除图片附件及引用链接情况说明：
 >
-> 1. 仅被当前笔记引用且**一次**，则直接删除图片，同时移除链接。
-> 2. 仅被当前笔记引用且**多次**，则弹出提示窗口，要求用户手动移除链接，不删除图片。（避免图片被错误删除）
-> 3. 被**多个笔记**引用，则弹出提示窗口，用户可点击`close`按钮继续移除**当前文档**中的图片引用链接，不删除图片。（避免图片被错误删除）
+> 1. 该附件**仅被当前链接引用**，则会直接删除该链接，同时删除附件文件。
+> 2. 该附件除了当前链接**还有其他地方对其有引用**，则只会删除当前的链接文本，并不会删除该附件文件。
 >
 > 删除笔记同时自动删除引用的附件说明：
 >
@@ -61,7 +57,6 @@
 
 ### 从插件市场安装
 
-直接从插件市场安装，输入`Fast Image cleaner`。
 
 ### 从 brat 安装
 
@@ -81,9 +76,7 @@
 
 ### 删除目的设置
 
-![image-20230209180042264](assets/README-images/image-20230209180042264.png)
-
-请确保你在"Fast Images Cleaner Settings" 下选择了被删除图片的目的地。你有 3 个选项。
+请确保你在本插件的设置界面下选择了被删除图片的目的地。你有 3 个选项。
 
 1. **移动到黑曜石垃圾桶** - 文件将被移动到黑曜石保险库下的`.trash`。
 2. **移动到系统垃圾箱** - 文件将被移动到操作系统垃圾箱。
@@ -95,11 +88,11 @@
 
 (1)实时预览模式下
 
-![image-20230215115818647](assets/ZH-images/image-20230215115818647.png)
+<img src="assets/SourceModeMenu.png" width="600">
 
 (2)阅读模式下
 
-![image-20230215115818647](assets/ZH-images/image-20230215115818647.png)
+<img src="assets/ReadingModeMenu.png" width="600">
 
 ## 开发
 
@@ -107,14 +100,12 @@
 
 ## 给我充电
 
-❤ 如果你喜欢使用 Obsidian-Fast-Image-Cleaner，那么请支持我的工作，请给我充电。
+❤ 如果你喜欢使用 Obsidian-Fast-Image-Cleaner，那么请支持我的工作，请给我充电。https://afdian.net/a/nathanel
 
-https://afdian.net/a/nathanel 或者
+## 项目说明
 
+本插件是在 [Fast-Image-Clear 插件](https://github.com/martinniee/Obsidian-fast-image-cleaner)v0.8.1 的基础上修改得到。我在其基础上增加了拷贝文件到剪贴板的功能。此外，在默认app打开，在finder中显示，在文件列表显示这三个功能我是参考了 [obsidian-copy-url-in-preview 插件](https://github.com/NomarCub/obsidian-copy-url-in-preview)。
 
-
-<img src="assets/ZH-images/微信支付宝二合一收款码.jpg" alt="微信支付宝二合一收款码" style="zoom: 33%;" />
-
-## 计划
-
--   [ ] 实现任意类型嵌入附件右键显示在文件列表菜单选项
+参考项目地址：
+- https://github.com/martinniee/Obsidian-fast-image-cleaner
+- https://github.com/NomarCub/obsidian-copy-url-in-preview
