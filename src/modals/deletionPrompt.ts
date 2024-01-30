@@ -1,5 +1,5 @@
 import { Modal, TFile } from "obsidian";
-import NathanImageCleaner from "src/main";
+import AttachFlowPlugin from "src/main";
 import {
 	deleteAllAttachs,
 	getRefencedLinkCount,
@@ -8,8 +8,8 @@ import { deleteFile } from "src/utils/deleteFile";
 
 export class DeleteAllLogsModal extends Modal {
 	note: TFile;
-	myPlugin: NathanImageCleaner;
-	constructor(note: TFile, myPlugin: NathanImageCleaner) {
+	myPlugin: AttachFlowPlugin;
+	constructor(note: TFile, myPlugin: AttachFlowPlugin) {
 		super(app);
 		this.note = note;
 		this.myPlugin = myPlugin;
@@ -20,14 +20,14 @@ export class DeleteAllLogsModal extends Modal {
 	}
 	showLogs() {
 		const logs = this.contentEl.createEl("div");
-		logs.addClass("fast-image-cleaner-log");
+		logs.addClass("attachment-flow-log");
 		logs.setText(this.getLog());
 	}
 	onOpen() {
 		const { contentEl } = this;
 		const myModal = this;
 		const headerWrapper = contentEl.createEl("div");
-		headerWrapper.addClass("fast-image-cleaner-center-wrapper");
+		headerWrapper.addClass("attachment-flow-center-wrapper");
 		this.showLogs();
 		const referencedMessageWrapper = contentEl.createEl("span");
 		referencedMessageWrapper.style.color = "red";
@@ -35,7 +35,7 @@ export class DeleteAllLogsModal extends Modal {
 		referencedMessageWrapper.append(referencedMessage);
 		// ------------------------
 		const buttonWrapper = this.contentEl.createEl("div") as HTMLDivElement;
-		buttonWrapper.addClass("fast-image-cleaner-center-wrapper");
+		buttonWrapper.addClass("attachment-flow-center-wrapper");
 		const headerEl = headerWrapper.createEl("h1", {
 			text: "Delete the file and its all attachments - logs ",
 		});

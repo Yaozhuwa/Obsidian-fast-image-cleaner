@@ -1,15 +1,19 @@
-# Fast Image Cleaner
+# AttachFlow
 
 中文 / [EN](./README.md)
 
-此插件可以快速删除笔记中的图片（或视频，录音，文件.....）附件及移除引用链接通过右键图片点击上下文菜单选项。
+利用这个插件，您可以在实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）
 
 ## 演示
+(1)实时预览模式下
 
-// 功能已经更新,等待..........
+<img src="assets/SourceModeMenu.png" width="600">
 
+(2)阅读模式下
 
-## 特性
+<img src="assets/ReadingModeMenu.png" width="600">
+
+## 删除文件功能详细介绍
 
 特性简介：
 
@@ -60,14 +64,14 @@
 
 ### 从 brat 安装
 
-👦 添加 `martinniee/Obsidian-fast-image-cleaner` 到 BRAT
+
 
 ### 手动安装
 
 方式
 
--   方式 1：进入 release 页面，下载`.zip`压缩包
--   方式 2：下载并将三个文件（`main.js`、`manifest.json`、`style.css`）提取并放到`<your_vault>/.obsidian/plugins/Obsidian-fast-image-cleaner `文件夹中。
+- 进入 release 页面，下载`.zip`压缩包，解压得到的文件夹放入`<your_vault>/.obsidian/plugins/`
+
 
 ## 使用
 
@@ -82,17 +86,6 @@
 2. **移动到系统垃圾箱** - 文件将被移动到操作系统垃圾箱。
 3. **永久删除** - 文件将被永久销毁。你将不能再恢复了
 
-### 删除方式
-
-#### 删除附件及链接
-
-(1)实时预览模式下
-
-<img src="assets/SourceModeMenu.png" width="600">
-
-(2)阅读模式下
-
-<img src="assets/ReadingModeMenu.png" width="600">
 
 ## 开发
 

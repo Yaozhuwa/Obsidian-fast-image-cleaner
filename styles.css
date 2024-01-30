@@ -1,17 +1,14 @@
-.fast-image-cleaner-center-wrapper {
+.attachment-flow-center-wrapper {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 }
-.fast-image-cleaner-log {
+.attachment-flow-log {
 	margin-bottom: 13px;
 	margin-top: 5px;
 	white-space: pre-line; /*  enable line break when html parse text containing '\n'  */
 }
-.fast-image-cleaner-prompt {
-	color: red;
-	white-space: pre-line;
-}
+
 button.mod-warning {
 	background-color: var(--background-modifier-error);
 	color: var(--text-on-accent);

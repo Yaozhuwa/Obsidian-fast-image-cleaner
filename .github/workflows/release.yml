@@ -6,7 +6,7 @@ on:
       - "*"
 
 env:
-  PLUGIN_NAME: nl-fast-image-cleaner # Change this to match the id of your plugin.
+  PLUGIN_NAME: attachment-flow # Change this to match the id of your plugin.
 
 jobs:
   build:

@@ -1,10 +1,11 @@
 {
-	"id": "nl-fast-image-cleaner",
-	"name": "Fast Image Cleaner",
-	"version": "0.8.1",
+	"id": "attachment-flow-plugin",
+	"name": "AttachFlow",
+	"version": "0.1.0",
 	"minAppVersion": "1.0.9",
-	"description": "This plugin allows you to quickly remove image attachment and referenced link from your documents in both LIVE , READ mode by right-click menu",
-	"author": "Nathaniel",
-	"authorUrl": "https://github.com/martinniee/",
-	"isDesktopOnly": false
+	"description": "This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive right-click menu, you can efficiently handle resources in both LIVE and READ modes.",
+	"author": "yaozhuwa",
+	"authorUrl": "https://github.com/Yaozhuwa",
+	"isDesktopOnly": false,
+	"fundingUrl": "https://www.buymeacoffee.com/yaozhuwa"
 }

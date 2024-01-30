@@ -1,4 +1,4 @@
-import NathanImageCleaner from "src/main";
+import AttachFlowPlugin from "src/main";
 import { TFile, Notice, TFolder, MarkdownView, Editor} from "obsidian";
 import { imageReferencedState } from "./enum/imageReferencedState";
 import { resultDetermineImageDeletion as deletionResult } from "./interface/resultDetermineImageDeletion";
@@ -107,7 +107,7 @@ export const getFileByBaseName = (
 export const PureClearAttachment = async (
 	file: TFile,
 	target_type: string,
-	plugin: NathanImageCleaner
+	plugin: AttachFlowPlugin
 ) => {
 	const deleteOption = plugin.settings.deleteOption;
 	const delFileFolder = onlyOneFileExists(file);
@@ -149,7 +149,7 @@ export const PureClearAttachment = async (
 export const handlerDelFileNew = (
 	FileBaseName: string,
 	currentMd: TFile,
-	plugin: NathanImageCleaner,
+	plugin: AttachFlowPlugin,
 	target_type: string,
 	target_line: number,
 	target_ch: number
@@ -183,7 +183,7 @@ export const handlerDelFileNew = (
 // target_line （1-based） 和 target_ch 是指示附件所在的位置
 export const deleteCurTargetLink = (
 	file_base_name: string,
-	plugin: NathanImageCleaner,
+	plugin: AttachFlowPlugin,
 	target_type: string,
 	target_line: number,
 	target_ch: number
@@ -261,7 +261,7 @@ export const deleteCurTargetLink = (
 export const handlerCopyFile = async (
 	FileBaseName: string,
 	currentMd: TFile,
-	plugin: NathanImageCleaner
+	plugin: AttachFlowPlugin
 ) => {
 	const file = getFileByBaseName(currentMd, FileBaseName) as TFile;
 	const basePath = (file.vault.adapter as any).basePath

@@ -1,7 +1,7 @@
 import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView, Platform } from "obsidian";
 import { addCommand } from "./config/addCommand-config";
-import { NathanImageCleanerSettingsTab } from "./settings";
-import { NathanImageCleanerSettings, DEFAULT_SETTINGS } from "./settings";
+import { AttachFlowSettingsTab } from "./settings";
+import { AttachFlowSettings, DEFAULT_SETTINGS } from "./settings";
 import * as Util from "./util";
 import { print } from './util'
 import { getMouseEventTarget } from "./utils/handlerEvent";
@@ -16,13 +16,13 @@ interface Listener {
 	(this: Document, ev: Event): any;
 }
 
-export default class NathanImageCleaner extends Plugin {
-	settings: NathanImageCleanerSettings;
+export default class AttachFlowPlugin extends Plugin {
+	settings: AttachFlowSettings;
 
 	async onload() {
-		console.log("Fast file Cleaner plugin loaded...");
+		console.log("AttachFlow plugin loaded...");
 
-		this.addSettingTab(new NathanImageCleanerSettingsTab(this.app, this));
+		this.addSettingTab(new AttachFlowSettingsTab(this.app, this));
 
 		await this.loadSettings();
 		this.registerDocument(document);
@@ -53,7 +53,7 @@ export default class NathanImageCleaner extends Plugin {
 	}
 
 	onunload() {
-		console.log("Fast file Cleaner plugin unloaded...");
+		console.log("AttachFlow plugin unloaded...");
 	}
 
 	registerDocument(document: Document) {
@@ -243,7 +243,7 @@ export default class NathanImageCleaner extends Plugin {
 
 		this.registerEscapeButton(menu);
 		menu.showAtPosition({ x: event.pageX, y: event.pageY });
-		this.app.workspace.trigger("NL-fast-file-cleaner:contextmenu", menu);
+		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
 	}
 
 }

@@ -1,14 +1,14 @@
 import { Notice, TFile, TFolder } from "obsidian";
 import { getFileParentFolder } from "src/util";
 import { deleteFile } from "src/utils/deleteFile";
-import NathanImageCleaner from "../../src/main";
+import AttachFlowPlugin from "../../src/main";
 /**
  * delAllAttachsByCommand
  *
  * 1. get current file
  * 2. get TFile of the attachment referenced by file
  */
-export const deleteAllAttachs = async (plugin: NathanImageCleaner) => {
+export const deleteAllAttachs = async (plugin: AttachFlowPlugin) => {
 	// 1. get current file
 	const activeMd: TFile = app.workspace.getActiveFile() as TFile;
 	const resolvedLinks = app.metadataCache.resolvedLinks;

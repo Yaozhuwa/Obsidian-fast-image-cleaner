@@ -1,14 +1,19 @@
-# Fast Image Cleaner
+# AttachFlow
 
 [中文](./ZH.md) / EN
 
-This plugin can fast delete image (or video, audio, file .....) attachment and remove referenced link by right clicking on the context menu option. 
+This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive **right-click menu**, you can efficiently handle resources in both LIVE and READ modes.
 
-## Demo
+## Showcase
 
-//The feature has been updated. waiting...........
+(1) In live preview mode
 
-## Features
+<img src="assets/SourceModeMenu.png" width="600">
+
+(2)In reading mode
+<img src="assets/ReadingModeMenu.png" width="600">
+
+## Details for clear file feature
 
 Feature intro:
 
@@ -64,12 +69,10 @@ Feature Details:
 
 ### Install from brat
 
-👦 add `martinniee/Obsidian-fast-image-cleaner` to BRAT
 
 ### Manual installation
 
--   Way 1: Go to the release page and download the '.zip' package
--   Way 2 : Download and extract the three files (`main.js`, `manifest.json`, `style.css`) into the `/.obsidian/plugins/Obsidian-fast-image-cleaner` folder.
+Go to the release page and download the '.zip' package, put the unziped folder to `<your_vault>/.obsidian/plugins/`.
 
 ## Usage
 
@@ -83,17 +86,6 @@ Please make sure that you select the destination for the deleted files under thi
 1. **Move to Obsidian Trash** - Files are going to be moved to the `.trash` under the Obsidian Vault.
 2. **Move to System Trash** - Files are going to be moved to the Operating System trash.
 3. **Permanently Delete** - Files are going to be destroyed permanently. You won't beable to revert back.
-
-### Deletion Mode
-
-#### Delete attachments and links
-
-(1) In live preview mode
-
-<img src="assets/SourceModeMenu.png" width="600">
-
-(2)In reading mode
-<img src="assets/ReadingModeMenu.png" width="600">
 
 
 ## Development

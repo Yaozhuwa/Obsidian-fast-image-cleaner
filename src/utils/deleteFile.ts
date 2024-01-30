@@ -1,5 +1,5 @@
 import { Notice, TFile, TFolder } from "obsidian";
-import NathanImageCleaner from "src/main";
+import AttachFlowPlugin from "src/main";
 const SUCCESS_NOTICE_TIMEOUT = 1800;
 /**
  * Delete attachment
@@ -7,7 +7,7 @@ const SUCCESS_NOTICE_TIMEOUT = 1800;
  */
 export const deleteFile = async (
 	file: TFile | TFolder,
-	plugin: NathanImageCleaner
+	plugin: AttachFlowPlugin
 ) => {
 	const deleteOption = plugin.settings.deleteOption;
 	try {

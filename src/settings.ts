@@ -1,26 +1,25 @@
-import NathanImageCleaner from './main';
+import AttachFlowPlugin from './main';
 import { PluginSettingTab, Setting, App } from 'obsidian';
 
 
 
-export interface NathanImageCleanerSettings {
+export interface AttachFlowSettings {
     deleteOption: string;
     logsModal: boolean;
 }
 
-export const DEFAULT_SETTINGS: NathanImageCleanerSettings = {
+export const DEFAULT_SETTINGS: AttachFlowSettings = {
     deleteOption: '.trash',
     logsModal: true,
-
 };
 
 
-export class NathanImageCleanerSettingsTab extends PluginSettingTab {
+export class AttachFlowSettingsTab extends PluginSettingTab {
 
-    plugin: NathanImageCleaner;
+    plugin: AttachFlowPlugin;
 
 
-    constructor(app: App, plugin: NathanImageCleaner) {
+    constructor(app: App, plugin: AttachFlowPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -29,7 +28,7 @@ export class NathanImageCleanerSettingsTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'Fast Attachment Cleaner Settings' });
+        containerEl.createEl('h2', { text: 'AttachFlow plugin Settings' });
 
         new Setting(containerEl)
             .setName('Deleted Attachment Destination')
