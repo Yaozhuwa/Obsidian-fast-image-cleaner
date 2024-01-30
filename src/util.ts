@@ -171,8 +171,8 @@ export const handlerDelFileNew = (
 			// referenced by eithor only note or other mutiple notes more than once
 			logs = refInfo.mdPath as string[];
 			// 由于有别的引用，所以只删除当前的引用链接而不删除文件
-			new Notice("As other references exist, " + 
-				"we have only deleted the current reference link without removing the actual file.", 
+			new Notice("As other references of current file exist, " + 
+				"just deleted the current reference link without deleting the actual file.", 
 				3500);
 		default:
 			break;
@@ -203,8 +203,8 @@ export const deleteCurTargetLink = (
 	}
 	// 如果是图片，就准确删除图片引用链接的部分
 	let match_context = line_text.substring(0, target_ch);
-	// console.log('line_text', line_text)
-	// console.log('context to match:', match_context);
+	print('line_text', line_text)
+	print('context to match:', match_context);
 
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]$/g;
     let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)$/g;
@@ -214,7 +214,7 @@ export const deleteCurTargetLink = (
 		// WIKI LINK
 		let match = match_context.match(regWikiLink);
 		matched_link = match ? match[0] : '';
-		// console.log('matched_link', matched_link)
+		print('matched_WIKIlink', matched_link)
 		if (!matched_link.contains(file_base_name)){
 			matched_link = '';
 		}
@@ -223,18 +223,18 @@ export const deleteCurTargetLink = (
 		// MD LINK
 		let match = match_context.match(regMdLink);
 		matched_link = match ? match[0] : '';
-		// console.log('matched_link', matched_link);
-		if (!matched_link.contains(file_base_name.replace(' ', '%20'))){
+		print('matched_MDlink', matched_link);
+		if (!matched_link.contains(file_base_name.replace(/ /g, '%20'))){
 			matched_link = '';
 		}
 	}
-	console.log('file_base_name', file_base_name)
+	print('file_base_name', file_base_name)
 	if (matched_link == ''){
+		// new Notice("Fail to delete the link-text (for links in callout), please delete it manually!", 0);
 		if (line_text.startsWith('>')){
-			new Notice("Fail to delete the link-text (for links in callout), please delete it manually!", 0);
-		}
-		else{
-			new Notice("Fail to delete the link-text (for links in table), please delete it manually!", 0);
+			deleteLinkInCallout(file_base_name, editor, target_line-1);
+		}else{
+			deleteLinkInTable(file_base_name, editor, target_line-1);
 		}
 		return;
 	}
@@ -376,3 +376,77 @@ function copyFileToClipboardCMD(filePath: string) {
         exec(`powershell -command "Set-Clipboard -Path '${filePath}'"`, callback);
     }
 }
+
+// 删除表格中的链接
+// line is 0-based line number
+const deleteLinkInTable = (file_base_name: string, editor: Editor, line: number) => {
+	const table_start_reg = /^\s*\|/;
+	const file_name_mdlink = file_base_name.replace(/ /g, '%20');
+	const regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
+	const regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+
+	for (let i = line; i < editor.lineCount(); i++) {
+		const line_text = editor.getLine(i);
+		if (!table_start_reg.test(line_text)) return;
+
+		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
+			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
+			if (match) {
+				for (const m of match) {
+					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
+						const new_line = line_text.replace(m, '');
+						editor.setLine(i, new_line);
+						return;
+					}
+				}
+			}
+		}
+	}
+	editor.focus();
+}
+
+// 删除callout中的链接
+// line is 0-based line number
+const deleteLinkInCallout = (file_base_name: string, editor: Editor, line: number) => {
+	const callout_start_reg = /^>/;
+	const file_name_mdlink = file_base_name.replace(/ /g, '%20');
+	const regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
+	const regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+
+	for (let i = line; i >= 0; i--) {
+		const line_text = editor.getLine(i);
+		if (!callout_start_reg.test(line_text)) return;
+
+		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
+			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
+			if (match) {
+				for (const m of match) {
+					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
+						const new_line = line_text.replace(m, '');
+						editor.setLine(i, new_line);
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	for (let i = line; i <editor.lineCount(); i++) {
+		const line_text = editor.getLine(i);
+		if (!callout_start_reg.test(line_text)) return;
+
+		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
+			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
+			if (match) {
+				for (const m of match) {
+					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
+						const new_line = line_text.replace(m, '');
+						editor.setLine(i, new_line);
+						return;
+					}
+				}
+			}
+		}
+	}
+	editor.focus();
+};
