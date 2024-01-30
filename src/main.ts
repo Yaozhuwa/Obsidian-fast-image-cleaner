@@ -3,6 +3,7 @@ import { addCommand } from "./config/addCommand-config";
 import { NathanImageCleanerSettingsTab } from "./settings";
 import { NathanImageCleanerSettings, DEFAULT_SETTINGS } from "./settings";
 import * as Util from "./util";
+import { print } from './util'
 import { getMouseEventTarget } from "./utils/handlerEvent";
 import { DeleteAllLogsModal } from "./modals/deletionPrompt";
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
@@ -211,8 +212,8 @@ export default class NathanImageCleaner extends Plugin {
 			//  @ts-expect-error, not typed
 			const editorView = editor.cm as EditorView;
 			const target_pos = editorView.posAtDOM(target);
-			console.log('target', target)
-			console.log('target.parentElement', target.parentElement)
+			// console.log('target', target)
+			// console.log('target.parentElement', target.parentElement)
 			// const prev_pos = editorView.posAtDOM(target.parentElement?.previousElementSibling as HTMLElement);
 			// const next_pos = editorView.posAtDOM(target.parentElement?.nextElementSibling as HTMLElement);
 			// let prev_target_line = editorView.state.doc.lineAt(prev_pos);
@@ -221,8 +222,8 @@ export default class NathanImageCleaner extends Plugin {
 			// console.log(prev_target_line.text, prev_target_line.number, prev_pos-prev_target_line.from)
 
 			let target_line = editorView.state.doc.lineAt(target_pos);
-			console.log('target line information: line-content, line-number(1-based), target.ch');
-			console.log(target_line.text, target_line.number, target_pos - target_line.from)
+			print('target line information: line-content, line-number(1-based), target.ch');
+			print(target_line.text, target_line.number, target_pos - target_line.from);
 
 			// ---------- EditorInternalApi.posAtMouse 不是很准确，不知道为什么，行号和ch都不准确 ----------
 			// const editor2 = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor as EditorInternalApi;

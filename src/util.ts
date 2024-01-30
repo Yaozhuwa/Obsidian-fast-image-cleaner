@@ -10,7 +10,14 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
 
+let DEBUG = false;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
+
+export const print=(message?: any, ...optionalParams: any[]) =>{
+    if (DEBUG) {
+        console.log(message, ...optionalParams);
+    }
+}
 
 /**
  *
@@ -216,7 +223,7 @@ export const deleteCurTargetLink = (
 		// MD LINK
 		let match = match_context.match(regMdLink);
 		matched_link = match ? match[0] : '';
-		// console.log('matched_link', matched_link)
+		// console.log('matched_link', matched_link);
 		if (!matched_link.contains(file_base_name.replace(' ', '%20'))){
 			matched_link = '';
 		}
@@ -238,7 +245,7 @@ export const deleteCurTargetLink = (
 		editor.setLine(target_line-1, new_line);
 	}
 	else{
-		console.log('line count', editor.lineCount())
+		// console.log('line count', editor.lineCount())
 		if (editor.lineCount()>target_line){
 			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line, ch: 0});
 		}
