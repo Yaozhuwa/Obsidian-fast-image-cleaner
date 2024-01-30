@@ -164,7 +164,9 @@ export const handlerDelFileNew = (
 			// referenced by eithor only note or other mutiple notes more than once
 			logs = refInfo.mdPath as string[];
 			// 由于有别的引用，所以只删除当前的引用链接而不删除文件
-			new Notice("As other references exist, we have only deleted the current reference link without removing the actual file.", 3000);
+			new Notice("As other references exist, " + 
+				"we have only deleted the current reference link without removing the actual file.", 
+				3500);
 		default:
 			break;
 	}
@@ -179,42 +181,71 @@ export const deleteCurTargetLink = (
 	target_line: number,
 	target_ch: number
 ) => {
+	file_base_name = file_base_name.startsWith('/') ? file_base_name.substring(1):file_base_name;
 	const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor as Editor;
-	let offset = editor.lineCount()>target_line ? 1 : 0;
 	let line_text = editor.getLine(target_line-1);
+	// 非图片，直接删除整行
 	if (target_type != 'img')
 	{
-		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
+		if (editor.lineCount()>target_line){
+			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line, ch: 0});
+		}else{
+			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
+		}
 		return;
 	}
 	// 如果是图片，就准确删除图片引用链接的部分
 	let match_context = line_text.substring(0, target_ch);
-	// console.log('match_context', match_context.replace(' ', '%20'))
+	// console.log('line_text', line_text)
+	// console.log('context to match:', match_context);
+
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]$/g;
     let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)$/g;
 	let matched_link = "";
-	// console.log('match_context.charAt(match_context.length-1)', match_context.charAt(match_context.length-1))
+	
 	if (match_context.charAt(match_context.length-1) == ']'){
 		// WIKI LINK
 		let match = match_context.match(regWikiLink);
 		matched_link = match ? match[0] : '';
+		// console.log('matched_link', matched_link)
+		if (!matched_link.contains(file_base_name)){
+			matched_link = '';
+		}
 	}
 	else if (match_context.charAt(match_context.length-1) == ')'){
 		// MD LINK
 		let match = match_context.match(regMdLink);
 		matched_link = match ? match[0] : '';
+		// console.log('matched_link', matched_link)
+		if (!matched_link.contains(file_base_name.replace(' ', '%20'))){
+			matched_link = '';
+		}
 	}
-	else{
-		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
-		editor.focus();
+	console.log('file_base_name', file_base_name)
+	if (matched_link == ''){
+		if (line_text.startsWith('>')){
+			new Notice("Fail to delete the link-text (for links in callout), please delete it manually!", 0);
+		}
+		else{
+			new Notice("Fail to delete the link-text (for links in table), please delete it manually!", 0);
+		}
 		return;
 	}
+
 	let new_line = match_context.substring(0, match_context.length-matched_link.length)+line_text.substring(target_ch);
-	if (new_line != '' || /^\s*$/.test(new_line)){
+	// console.log('new_line', new_line)
+	if (!/^\s*$/.test(new_line)){
 		editor.setLine(target_line-1, new_line);
 	}
 	else{
-		editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length+offset});
+		console.log('line count', editor.lineCount())
+		if (editor.lineCount()>target_line){
+			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line, ch: 0});
+		}
+		else{
+			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
+			// console.log("replace range", {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
+		}
 	}
 	editor.focus();
 }
@@ -226,7 +257,6 @@ export const handlerCopyFile = async (
 	plugin: NathanImageCleaner
 ) => {
 	const file = getFileByBaseName(currentMd, FileBaseName) as TFile;
-	const fileFolder = getFileParentFolder(file) as TFolder;
 	const basePath = (file.vault.adapter as any).basePath
 	const file_ab_path = basePath + '/' + file.path
 

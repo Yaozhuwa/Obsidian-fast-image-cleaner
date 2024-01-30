@@ -33,8 +33,9 @@ export default class NathanImageCleaner extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (file instanceof TFile) {
+					if (!file.path.endsWith(".md")) return;
 					const addMenuItem = (item: MenuItem) => {
-						item.setTitle("Remove the file and its attachments")
+						item.setTitle("Delete file and its attachments")
 							.setIcon("trash-2")
 							.setSection("danger");
 						item.onClick(async () => {
@@ -188,9 +189,9 @@ export default class NathanImageCleaner extends Plugin {
 
 		const RegFileBaseName = new RegExp(/\/?([^\/\n]+\.[\w\d]+$)/, "m");
 		let target_name = target.parentElement?.getAttribute("src") as string;
-		console.log('target_name', target_name)
 		const FileBaseName = (target_name?.match(RegFileBaseName) as string[])[0];
-		console.log('FileBaseName', FileBaseName)
+		// console.log('target_name', target_name)
+		// console.log('FileBaseName', FileBaseName)
 		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
 		const menu = new Menu();
@@ -210,6 +211,8 @@ export default class NathanImageCleaner extends Plugin {
 			//  @ts-expect-error, not typed
 			const editorView = editor.cm as EditorView;
 			const target_pos = editorView.posAtDOM(target);
+			console.log('target', target)
+			console.log('target.parentElement', target.parentElement)
 			// const prev_pos = editorView.posAtDOM(target.parentElement?.previousElementSibling as HTMLElement);
 			// const next_pos = editorView.posAtDOM(target.parentElement?.nextElementSibling as HTMLElement);
 			// let prev_target_line = editorView.state.doc.lineAt(prev_pos);
@@ -218,8 +221,15 @@ export default class NathanImageCleaner extends Plugin {
 			// console.log(prev_target_line.text, prev_target_line.number, prev_pos-prev_target_line.from)
 
 			let target_line = editorView.state.doc.lineAt(target_pos);
-			// console.log('target line information: line-content, line-number(1-based), target.ch');
-			// console.log(target_line.text, target_line.number, target_pos - target_line.from)
+			console.log('target line information: line-content, line-number(1-based), target.ch');
+			console.log(target_line.text, target_line.number, target_pos - target_line.from)
+
+			// ---------- EditorInternalApi.posAtMouse 不是很准确，不知道为什么，行号和ch都不准确 ----------
+			// const editor2 = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor as EditorInternalApi;
+		    // const position = editor2.posAtMouse(event);
+			// console.log('InterAPIPos line information: line-content, line-number(1-based), target.ch')
+			// console.log(editor?.getLine(position.line), position.line+1, position.ch)
+			// ---------------------------------------------------------------------------------------
 
 			// console.log('next target line information: line-content, line-number(1-based), target.ch');
 			// console.log(next_target_line.text, next_target_line.number, next_pos-next_target_line.from)

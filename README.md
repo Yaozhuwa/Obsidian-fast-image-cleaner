@@ -48,13 +48,13 @@ Feature Details:
 >
 > 1. If the image/file is only referenced **once** in the current note, it will be deleted directly along with its link.
 > 2. If the image/file is referenced **multiple times**, only the link to the current image/file is removed, not the actual file.
->
+
 > Explanation of automatic deletion of referenced attachments when deleting a note:
 >
 > 1. If the attachment is referenced by other notes, it will not be deleted.
 > 2. If the attachment is only referenced in the **note to be deleted**, it will be deleted.
 > 3. Deletion method: using the provided command of the plugin, or by right-clicking on the file list.
->
+
 > Explanation of automatic deletion of attachment folder depending on the situation:
 >
 > - The parent directory of an attachment (usually an attachment folder) will be deleted only if the attachment is referenced once in the note to be deleted, and the attachment folder is empty after the attachment is deleted.
