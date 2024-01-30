@@ -11,6 +11,7 @@ This nifty plugin enables seamless management of attachments and referenced link
 <img src="assets/SourceModeMenu.png" width="600">
 
 (2)In reading mode
+
 <img src="assets/ReadingModeMenu.png" width="600">
 
 ## Details for clear file feature
