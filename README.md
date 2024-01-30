@@ -97,5 +97,5 @@ This plugin follows the structure of the [Obsidian Sample Plugin](https://github
 This plugin is a modification based on the [Fast-Image-Clear plugin v0.8.1](https://github.com/martinniee/Obsidian-fast-image-cleaner). I've added functionality to copy files to the clipboard. Furthermore, the features of opening in the default app, showing in finder, and listing in the file list were all inspired by the [obsidian-copy-url-in-preview plugin](https://github.com/NomarCub/obsidian-copy-url-in-preview).
 
 References for these projects can be found at:
-https://github.com/martinniee/Obsidian-fast-image-cleaner
-https://github.com/NomarCub/obsidian-copy-url-in-preview
+- https://github.com/martinniee/Obsidian-fast-image-cleaner
+- https://github.com/NomarCub/obsidian-copy-url-in-preview
