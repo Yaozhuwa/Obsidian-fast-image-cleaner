@@ -1,6 +1,8 @@
 # AttachFlow
 
-[中文](./ZH.md) / EN
+【[中文](./ZH.md) / EN】
+
+This is a plugin for [Obsidian](https://obsidian.md).
 
 This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive **right-click menu**, you can efficiently handle resources in both LIVE and READ modes.
 
@@ -68,12 +70,12 @@ Feature Details:
 ## Install
 
 
-### Install from brat
+### Install from BRAT
 
-
+Add `https://github.com/Yaozhuwa/AttachFlow` to [BRAT](https://github.com/TfTHacker/obsidian42-brat).
 ### Manual installation
 
-Go to the release page and download the '.zip' package, put the unziped folder to `<your_vault>/.obsidian/plugins/`.
+Go to the latest release page and download the `main.js`, `manifest.json`, `style.css`, and put them to `<your_vault>/.obsidian/plugins/AttachFlow/`.
 
 ## Usage
 

@@ -1,8 +1,10 @@
 # AttachFlow
 
-中文 / [EN](./README.md)
+【中文 / [EN](./README.md)】
 
-利用这个插件，您可以在实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）
+这是一个 [Obsidian](https://obsidian.md) 的插件。
+
+利用这个插件，您可以在 [Obsidian](https://obsidian.md) 实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）
 
 ## 演示
 (1)实时预览模式下
@@ -62,15 +64,13 @@
 ### 从插件市场安装
 
 
-### 从 brat 安装
+### 从 BRAT 安装
 
-
+添加 `https://github.com/Yaozhuwa/AttachFlow` 到 [BRAT](https://github.com/TfTHacker/obsidian42-brat).
 
 ### 手动安装
 
-方式
-
-- 进入 release 页面，下载`.zip`压缩包，解压得到的文件夹放入`<your_vault>/.obsidian/plugins/`
+进入本插件最新的 release 页面，下载 `main.js`, `manifest.json`, `style.css`, 把他们放到 `<your_vault>/.obsidian/plugins/AttachFlow/` 文件夹下.
 
 
 ## 使用
@@ -91,9 +91,6 @@
 
 这个插件遵循 [Obsidian Sample Plugin](https://github.com/obsidianmd/obsidian-sample-plugin) 插件的结构，请看那里的进一步细节。
 
-## 给我充电
-
-❤ 如果你喜欢使用 Obsidian-Fast-Image-Cleaner，那么请支持我的工作，请给我充电。https://afdian.net/a/nathanel
 
 ## 项目说明
 
