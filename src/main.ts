@@ -199,9 +199,14 @@ export default class AttachFlowPlugin extends Plugin {
 
 		if (!SupportedTargetType.includes(curTargetType)) return;
 
+		// 判断当前点击的地方是否为表格
+		// const inTable:boolean = target.parentElement?.parentElement?.getAttribute('class')=='table-cell-wrapper';
+		const inTable: boolean = target.closest('table') != null;
+		const inPreview:boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+
 		// 判断当前是否是阅读模式
 		// console.log('Mode:', this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode());
-		if (this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview") {
+		if (inPreview) {
 			if (SupportedTargetType.includes(curTargetType)) {
 				// console.log("FileBaseName", FileBaseName);
 				this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
@@ -242,7 +247,13 @@ export default class AttachFlowPlugin extends Plugin {
 		}
 
 		this.registerEscapeButton(menu);
-		menu.showAtPosition({ x: event.pageX, y: event.pageY });
+		
+		if (inTable && !inPreview){
+			menu.showAtPosition({ x: event.pageX, y: event.pageY-136});
+		}
+		else{
+			menu.showAtPosition({ x: event.pageX, y: event.pageY });
+		}
 		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
 	}
 
