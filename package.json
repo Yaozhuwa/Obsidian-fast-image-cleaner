@@ -1,7 +1,7 @@
 {
-	"name": "nl-fast-image-cleaner",
-	"version": "0.8.1",
-	"description": "You can quickly delete image(or file,media) attachments and their reference links with the click of a button or right-click menu to adapt to different situations",
+	"name": "attachment-flow-plugin",
+	"version": "0.1.1",
+	"description": "This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive right-click menu, you can efficiently handle resources in both LIVE and READ modes.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
