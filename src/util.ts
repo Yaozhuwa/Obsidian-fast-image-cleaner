@@ -151,8 +151,9 @@ export const handlerDelFileNew = (
 	currentMd: TFile,
 	plugin: AttachFlowPlugin,
 	target_type: string,
-	target_line: number,
-	target_ch: number
+	target_pos: number,
+	in_table: boolean,
+	in_callout: boolean
 ) => {
 	let logs: string[];
 	let modal;
@@ -162,12 +163,12 @@ export const handlerDelFileNew = (
 	switch (state) {
 		case 0:
 			// clear attachment directly
-			deleteCurTargetLink(FileBaseName, plugin, target_type, target_line, target_ch);
+			deleteCurTargetLink(FileBaseName, plugin, target_type, target_pos, in_table, in_callout);
 			PureClearAttachment(target_file, target_type, plugin);
 			break;
 		case 1:
 		case 2:
-			deleteCurTargetLink(FileBaseName, plugin, target_type, target_line, target_ch);
+			deleteCurTargetLink(FileBaseName, plugin, target_type, target_pos, in_table, in_callout);
 			// referenced by eithor only note or other mutiple notes more than once
 			logs = refInfo.mdPath as string[];
 			// 由于有别的引用，所以只删除当前的引用链接而不删除文件
@@ -185,75 +186,82 @@ export const deleteCurTargetLink = (
 	file_base_name: string,
 	plugin: AttachFlowPlugin,
 	target_type: string,
-	target_line: number,
-	target_ch: number
+	target_pos: number,
+	in_table: boolean,
+	in_callout: boolean
 ) => {
 	file_base_name = file_base_name.startsWith('/') ? file_base_name.substring(1):file_base_name;
-	const editor = plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor as Editor;
-	let line_text = editor.getLine(target_line-1);
-	// 非图片，直接删除整行
-	if (target_type != 'img')
-	{
-		if (editor.lineCount()>target_line){
-			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line, ch: 0});
-		}else{
-			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
-		}
-		return;
-	}
-	// 如果是图片，就准确删除图片引用链接的部分
-	let match_context = line_text.substring(0, target_ch);
-	print('line_text', line_text)
-	print('context to match:', match_context);
+	const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView) as MarkdownView;
+	const editor = activeView.editor;
+	//  @ts-expect-error, not typed
+	const editorView = editor.cm as EditorView;
 
-	let regWikiLink = /\!\[\[[^\[\]]*?\]\]$/g;
-    let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)$/g;
-	let matched_link = "";
-	
-	if (match_context.charAt(match_context.length-1) == ']'){
-		// WIKI LINK
-		let match = match_context.match(regWikiLink);
-		matched_link = match ? match[0] : '';
-		print('matched_WIKIlink', matched_link)
-		if (!matched_link.contains(file_base_name)){
-			matched_link = '';
-		}
-	}
-	else if (match_context.charAt(match_context.length-1) == ')'){
-		// MD LINK
-		let match = match_context.match(regMdLink);
-		matched_link = match ? match[0] : '';
-		print('matched_MDlink', matched_link);
-		if (!matched_link.contains(file_base_name.replace(/ /g, '%20'))){
-			matched_link = '';
-		}
-	}
-	print('file_base_name', file_base_name)
-	if (matched_link == ''){
-		// new Notice("Fail to delete the link-text (for links in callout), please delete it manually!", 0);
-		if (line_text.startsWith('>')){
-			deleteLinkInCallout(file_base_name, editor, target_line-1);
-		}else{
-			deleteLinkInTable(file_base_name, editor, target_line-1);
-		}
-		return;
-	}
+	let target_line = editorView.state.doc.lineAt(target_pos);
+	let line_text = target_line.text;
 
-	let new_line = match_context.substring(0, match_context.length-matched_link.length)+line_text.substring(target_ch);
-	// console.log('new_line', new_line)
-	if (!/^\s*$/.test(new_line)){
-		editor.setLine(target_line-1, new_line);
-	}
-	else{
-		// console.log('line count', editor.lineCount())
-		if (editor.lineCount()>target_line){
-			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line, ch: 0});
+	if (!in_table && !in_callout){
+		let finds = findLinkInLine(file_base_name, line_text);
+		if (finds.length == 0){
+			new Notice("Fail to find the link-text, please delete it manually!", 0);
+			return;
+		}
+		else if(finds.length != 1){
+			new Notice("Find multiple same Link in current line, please delete it manually!", 0);
+			return;
 		}
 		else{
-			editor.replaceRange('', {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
-			// console.log("replace range", {line: target_line-1, ch: 0}, {line: target_line-1, ch: line_text.length});
+			// editorView.dispatch({changes: {from: target_line.from + finds[0][0], to: target_line.from + finds[0][1], insert: ''}});
+			editor.replaceRange('', {line: target_line.number-1, ch: finds[0][0]}, {line: target_line.number-1, ch: finds[0][1]});
+			return;
 		}
 	}
+
+	type RegDictionary = {
+		[key: string]: RegExp;
+	};
+	
+	let startReg: RegDictionary = {
+		'table': /^\s*\|/,
+		'callout': /^>/,
+	};
+
+	let mode = in_table ? 'table' : 'callout';
+	let finds_lines: number[] = [];
+	let finds_all: [from:number, to:number][] = [];
+	for (let i=target_line.number; i<=editor.lineCount(); i++){
+		let line_text = editor.getLine(i-1);
+		if (!startReg[mode].test(line_text)) break;
+		print(`line_${i}_text:`, line_text)
+		let finds = findLinkInLine(file_base_name, line_text);
+		if (finds.length > 0){
+			finds_lines.push(...new Array(finds.length).fill(i));
+			finds_all.push(...finds);
+		}
+	}
+
+	for (let i=target_line.number-1; i>=1; i--){
+		let line_text = editor.getLine(i-1);
+		if (!startReg[mode].test(line_text)) break;
+		print(`line_${i}_text:`, line_text)
+		let finds = findLinkInLine(file_base_name, line_text);
+		if (finds.length > 0){
+			finds_lines.push(...new Array(finds.length).fill(i));
+			finds_all.push(...finds);
+		}
+	}
+
+	if (finds_all.length == 0){
+		new Notice(`Fail to find the link-text (for links in ${mode}), please delete it manually!`, 0);
+		return;
+	}
+	else if(finds_all.length != 1){
+		new Notice(`Find multiple same Link in current ${mode}, please delete it manually!`, 0);
+		return;
+	}
+	else{
+		editor.replaceRange('', {line: finds_lines[0]-1, ch: finds_all[0][0]}, {line: finds_lines[0]-1, ch: finds_all[0][1]});
+	}
+
 	editor.focus();
 }
 
@@ -377,76 +385,38 @@ function copyFileToClipboardCMD(filePath: string) {
     }
 }
 
-// 删除表格中的链接
-// line is 0-based line number
-const deleteLinkInTable = (file_base_name: string, editor: Editor, line: number) => {
-	const table_start_reg = /^\s*\|/;
-	const file_name_mdlink = file_base_name.replace(/ /g, '%20');
-	const regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
-	const regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+const findLinkInLine = (file_name: string, line_text: string) =>{
+	const file_name_mdlink = file_name.replace(/ /g, '%20');
+	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
+    let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+	print('target_name (WIKI/MD):', file_name, file_name_mdlink)
 
-	for (let i = line; i < editor.lineCount(); i++) {
-		const line_text = editor.getLine(i);
-		if (!table_start_reg.test(line_text)) return;
-
-		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
-			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
-			if (match) {
-				for (const m of match) {
-					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
-						const new_line = line_text.replace(m, '');
-						editor.setLine(i, new_line);
-						return;
-					}
-				}
+	// console.log('search in line_text:', line_text)
+	let search_result: [from:number, to:number][] = []
+	if (line_text.includes(file_name)){
+		while(true){
+			let match = regWikiLink.exec(line_text);
+			if(!match) break;
+			let matched_link = match[0];
+			print('matched_link:', matched_link)
+			print('matched_link.includes(file_name)', matched_link.includes(file_name))
+			if (matched_link.includes(file_name)){
+				search_result.push([match.index, match.index+matched_link.length]);
 			}
 		}
 	}
-	editor.focus();
+
+	if (line_text.includes(file_name_mdlink)){
+		while(true){
+			let match = regMdLink.exec(line_text);
+			if(!match) break;
+			let matched_link = match[0];
+			print('matched_link:', matched_link)
+			print('matched_link.includes(file_name_mdlink)', matched_link.includes(file_name_mdlink))
+			if (matched_link.includes(file_name_mdlink)){
+				search_result.push([match.index, match.index+matched_link.length]);
+			}
+		}
+	}
+	return search_result;
 }
-
-// 删除callout中的链接
-// line is 0-based line number
-const deleteLinkInCallout = (file_base_name: string, editor: Editor, line: number) => {
-	const callout_start_reg = /^>/;
-	const file_name_mdlink = file_base_name.replace(/ /g, '%20');
-	const regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
-	const regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
-
-	for (let i = line; i >= 0; i--) {
-		const line_text = editor.getLine(i);
-		if (!callout_start_reg.test(line_text)) return;
-
-		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
-			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
-			if (match) {
-				for (const m of match) {
-					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
-						const new_line = line_text.replace(m, '');
-						editor.setLine(i, new_line);
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	for (let i = line; i <editor.lineCount(); i++) {
-		const line_text = editor.getLine(i);
-		if (!callout_start_reg.test(line_text)) return;
-
-		if (line_text.includes(file_base_name) || line_text.includes(file_name_mdlink)) {
-			const match = line_text.match(regWikiLink) || line_text.match(regMdLink);
-			if (match) {
-				for (const m of match) {
-					if (m.includes(file_base_name) || m.includes(file_name_mdlink)) {
-						const new_line = line_text.replace(m, '');
-						editor.setLine(i, new_line);
-						return;
-					}
-				}
-			}
-		}
-	}
-	editor.focus();
-};

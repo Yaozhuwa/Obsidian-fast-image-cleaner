@@ -58,7 +58,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"contextmenu" as keyof HTMLElementEventMap,
-				"img, iframe, video, div.file-embed-title,audio",
+				"img, iframe, video, div.file-embed-title, audio",
 				this.onClick.bind(this)
 			)
 		);
@@ -259,7 +259,7 @@ export default class AttachFlowPlugin extends Plugin {
 	 * @param FileBaseName
 	 * @param currentMd
 	 */
-	addMenuExtendedSourceMode = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type: string, target_line: number, target_ch: number) => {
+	addMenuExtendedSourceMode = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type: string, target_pos: number, inTable: boolean, inCallout: boolean) => {
 		menu.addItem((item: MenuItem) =>
 			item
 				.setIcon("trash-2")
@@ -268,7 +268,7 @@ export default class AttachFlowPlugin extends Plugin {
 				.onClick(async () => {
 					try {
 						// Util.handlerDelFile(FileBaseName, currentMd, this);
-						Util.handlerDelFileNew(FileBaseName, currentMd, this, target_type, target_line, target_ch);
+						Util.handlerDelFileNew(FileBaseName, currentMd, this, target_type, target_pos, inTable, inCallout);
 					} catch {
 						new Notice("Error, could not clear the file!");
 					}
@@ -351,6 +351,7 @@ export default class AttachFlowPlugin extends Plugin {
 		// 判断当前点击的地方是否为表格
 		// const inTable:boolean = target.parentElement?.parentElement?.getAttribute('class')=='table-cell-wrapper';
 		const inTable: boolean = target.closest('table') != null;
+		const inCallout: boolean = target.closest('.callout') != null;
 		const inPreview:boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
 
 		// 判断当前是否是阅读模式
@@ -358,7 +359,7 @@ export default class AttachFlowPlugin extends Plugin {
 		if (inPreview) {
 			if (SupportedTargetType.includes(curTargetType)) {
 				// console.log("FileBaseName", FileBaseName);
-				this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
+				this.addMenuExtendedPreviewMode(menu, target_name, currentMd);
 			}
 		}
 		else{
@@ -390,8 +391,7 @@ export default class AttachFlowPlugin extends Plugin {
 			// console.log(next_target_line.text, next_target_line.number, next_pos-next_target_line.from)
 
 			if (SupportedTargetType.includes(curTargetType)) {
-				// console.log("FileBaseName", FileBaseName);
-				this.addMenuExtendedSourceMode(menu, FileBaseName, currentMd, curTargetType, target_line.number, target_pos - target_line.from);
+				this.addMenuExtendedSourceMode(menu, target_name, currentMd, curTargetType, target_pos, inTable, inCallout);
 			}
 		}
 
@@ -571,7 +571,6 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
 		let matched_link = match[0];
-		console.log('search MDLink')
 		if (matched_link.includes(target_name_mdlink)){
 			// 找到 matched_link 中的 altText
 			let alt_text_match = matched_link.match(/\[.*?\]/g) as string[];
