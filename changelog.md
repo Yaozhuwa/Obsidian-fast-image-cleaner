@@ -1,3 +1,6 @@
+- AttachFlow v0.2.0 2024-03-20
+  - 增加拖拽调整图片大小的功能！(参考 [Image Converter 插件](https://github.com/xRyul/obsidian-image-converter))
+  - 优化图片删除，在 Callout 和 Table 中的情况。
 - AttachFlow v0.1.1 2024-03-09
   - 修复表格中图片右键菜单位置与原生菜单重叠的问题
 - AttachFlow v0.1.0 2024-01-31

@@ -94,8 +94,9 @@
 
 ## 项目说明
 
-本插件是在 [Fast-Image-Clear 插件](https://github.com/martinniee/Obsidian-fast-image-cleaner)v0.8.1 的基础上修改得到。我在其基础上增加了拷贝文件到剪贴板的功能。此外，在默认app打开，在finder中显示，在文件列表显示这三个功能我是参考了 [obsidian-copy-url-in-preview 插件](https://github.com/NomarCub/obsidian-copy-url-in-preview)。
+本插件是在 [Fast-Image-Clear 插件](https://github.com/martinniee/Obsidian-fast-image-cleaner)v0.8.1 的基础上修改得到。我在其基础上增加了拷贝文件到剪贴板的功能。此外，在默认app打开，在finder中显示，在文件列表显示这三个功能我是参考了 [obsidian-copy-url-in-preview 插件](https://github.com/NomarCub/obsidian-copy-url-in-preview)。拖拽调整图片大小的功能修改自 [Image Converter 插件](https://github.com/xRyul/obsidian-image-converter)。
 
 参考项目地址：
 - https://github.com/martinniee/Obsidian-fast-image-cleaner
 - https://github.com/NomarCub/obsidian-copy-url-in-preview
+- https://github.com/xRyul/obsidian-image-converter
