@@ -12,9 +12,6 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
 
-interface Listener {
-	(this: Document, ev: Event): any;
-}
 
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
@@ -65,13 +62,165 @@ export default class AttachFlowPlugin extends Plugin {
 				this.onClick.bind(this)
 			)
 		);
-		/* 	this.register(
-				this.onElement(
-					document,
-					"contextmenu" as keyof HTMLElementEventMap,
-					"div.nav-file",
-					this.IsdeleteNoteWithItsAllAttachments.bind(this)
-				)) */
+		
+		this.register(
+			onElement(
+				document,
+				"mousedown",
+				"img, video",
+				(event: MouseEvent) => {
+					if (event.button === 0) {
+						event.preventDefault();
+					}
+					const img = event.target as HTMLImageElement | HTMLVideoElement;
+					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+					//  @ts-expect-error, not typed
+					const editorView = editor.cm as EditorView;
+					const target_pos = editorView.posAtDOM(img);
+					let target_line = editorView.state.doc.lineAt(target_pos);
+
+					const inTable: boolean = img.closest('table') != null;
+					const inCallout: boolean = img.closest('.callout') != null;
+					print('InTable', inTable)
+
+					const rect = img.getBoundingClientRect();
+					const x = event.clientX - rect.left;
+					const y = event.clientY - rect.top;
+					const edgeSize = 30; // size of the edge in pixels
+					if (x < edgeSize || y < edgeSize || x > rect.width - edgeSize || y > rect.height - edgeSize) {
+						const startX = event.clientX;
+						const startY = event.clientY;
+						const startWidth = img.clientWidth;
+						const startHeight = img.clientHeight;
+						let lastUpdateX = startX;
+						let lastUpdateY = startY;
+						const updateThreshold = 5; // The mouse must move at least 5 pixels before an update
+						
+						const onMouseMove = (event: MouseEvent) => {
+							const currentX = event.clientX;
+							let newWidth = startWidth + (currentX - startX);
+							const aspectRatio = startWidth / startHeight;
+
+							// Ensure the image doesn't get too small
+							newWidth = Math.max(newWidth, 50);
+
+							let newHeight = newWidth / aspectRatio;
+							// Round the values to the nearest whole number
+							newWidth = Math.round(newWidth);
+							newHeight = Math.round(newHeight);
+
+							// Apply the new dimensions to the image or video
+							if (img instanceof HTMLImageElement) {
+								img.style.border = 'solid';
+								img.style.borderWidth = '2px';
+								img.style.borderColor = 'blue';
+								img.style.boxSizing = 'border-box';
+								img.style.width = `${newWidth}px`;
+								// img.style.height = `${newHeight}px`;
+							} else if (img instanceof HTMLVideoElement) {
+								img.style.border = 'solid';
+								img.style.borderWidth = '2px';
+								img.style.borderColor = 'blue';
+								img.style.boxSizing = 'border-box';
+								// Check if img.parentElement is not null before trying to access its clientWidth property
+								if (img.parentElement){
+									const containerWidth = img.parentElement.clientWidth;
+									const newWidthPercentage = (newWidth / containerWidth) * 100;
+									img.style.width = `${newWidthPercentage}%`;
+								}
+							}
+
+							// Check if the mouse has moved more than the update threshold
+							if (Math.abs(event.clientX - lastUpdateX) > updateThreshold) {
+								const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+								if (activeView) {
+									print("update new Width", newWidth);
+									let imageName = img.getAttribute('src');
+									if (imageName?.startsWith('http')){
+										updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
+									}
+									else{
+										imageName = img.parentElement?.getAttribute('src') as string;
+										updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
+									}
+								}
+
+								// Update the last update coordinates
+								lastUpdateX = event.clientX;
+								lastUpdateY = event.clientY;
+							}
+						}
+
+						const onMouseUp = (event: MouseEvent) => {
+							// const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+							// //  @ts-expect-error, not typed
+							// const editorView = editor.cm as EditorView;
+							// if (table_changes){
+							// 	editorView.dispatch(table_changes[0]);
+							// }
+							event.preventDefault()
+							img.style.borderStyle = 'none'
+							img.style.outline = 'none';
+							img.style.cursor = 'default';
+							document.removeEventListener("mousemove", onMouseMove);
+							document.removeEventListener("mouseup", onMouseUp);
+						};
+						document.addEventListener("mousemove", onMouseMove);
+						document.addEventListener("mouseup", onMouseUp);
+					}
+				}
+			)
+		)
+		this.register(
+			onElement(
+				document,
+				"mouseover",
+				"img, video",
+				(event: MouseEvent) => {
+					// if (!this.settings.resizeByDragging) return;
+					const img = event.target as HTMLImageElement | HTMLVideoElement;
+					const rect = img.getBoundingClientRect(); // Cache this
+					const edgeSize = 30; // size of the edge in pixels
+
+					// Throttle mousemove events
+					let lastMove = 0;
+					const mouseOverHandler = (event: MouseEvent) => {
+						const now = Date.now();
+						if (now - lastMove < 100) return; // Only execute once every 100ms
+						lastMove = now;
+
+						const x = event.clientX - rect.left;
+						const y = event.clientY - rect.top;
+
+						if ((x >= rect.width - edgeSize || x <= edgeSize) || (y >= rect.height - edgeSize || y <= edgeSize)) {
+							img.style.cursor = 'nwse-resize';
+							img.style.outline = 'solid';
+							img.style.outlineWidth = '6px';
+							img.style.outlineColor = '#dfb0f283';
+						} else {
+							img.style.cursor = 'default';
+							img.style.outline = 'none';
+						}
+					};
+					this.registerDomEvent(img, 'mousemove', mouseOverHandler);
+				}
+			)
+		);
+
+		this.register(
+			onElement(
+				document,
+				"mouseout",
+				"img, video",
+				(event: MouseEvent) => {
+					// if (!this.settings.resizeByDragging) return;
+					const img = event.target as HTMLImageElement | HTMLVideoElement;
+					img.style.borderStyle = 'none';
+					img.style.cursor = 'default';
+					img.style.outline = 'none';
+				}
+			)
+		);
 	}
 
 	async loadSettings() {
@@ -257,4 +406,203 @@ export default class AttachFlowPlugin extends Plugin {
 		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
 	}
 
+}
+
+function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement | HTMLVideoElement, target_pos: number, imageName: string, newWidth: number, newHeight: number, inTable: boolean, inCallout: boolean): void {
+	const editor = activeView.editor;
+	//  @ts-expect-error, not typed
+	const editorView = editor.cm as EditorView;
+	let target_line = editorView.state.doc.lineAt(target_pos);
+	// print('target line information: line-content, line-number(1-based), target.ch');
+	// print(target_line.text, target_line.number, target_pos - target_line.from);
+
+	if (!inCallout && !inTable){
+		let newLineText = matchLineWithInternalLink(target_line.text, imageName, newWidth, inTable);
+		if (newLineText){
+			editorView.dispatch({ changes: { from: target_line.from, to: target_line.to, insert: newLineText } });
+		}
+	}
+
+	if (inTable){
+		const table_start_reg = /^\s*\|/;
+		let start_line_number = target_line.number;
+		for (let i = start_line_number; i <= editor.lineCount(); i++){
+			let line = editorView.state.doc.line(i);
+			if (!table_start_reg.test(line.text)) break;
+			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+
+		for (let i = start_line_number; i >= 1; i--){
+			let line = editorView.state.doc.line(i);
+			if (!table_start_reg.test(line.text)) return;
+			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+	}
+
+	if (inCallout){
+		const callout_start_reg = /^>/;
+		let start_line_number = target_line.number;
+		for (let i = start_line_number; i <= editor.lineCount(); i++){
+			let line = editorView.state.doc.line(i);
+			if (!callout_start_reg.test(line.text)) break;
+			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+
+		for (let i = start_line_number; i >= 1; i--){
+			let line = editorView.state.doc.line(i);
+			if (!callout_start_reg.test(line.text)) return;
+			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+	}
+}
+
+
+function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement | HTMLVideoElement, target_pos: number, newWidth: number, newHeight: number, inTable: boolean, inCallout: boolean): void {
+	const editor = activeView.editor;
+	//  @ts-expect-error, not typed
+	const editorView = editor.cm as EditorView;
+	let target_line = editorView.state.doc.lineAt(target_pos);
+
+	const link = target.getAttribute('src') as string;
+	const altText = target.getAttribute("alt") as string;
+	let pureAltText = altText.replace(/\|\d+(\|\d+)?$/g, '');
+
+	if (!inCallout && !inTable){
+		let newLineText = matchLineWithExternalLink(target_line.text, link, altText, newWidth, inTable);
+		if (newLineText){
+			editorView.dispatch({ changes: { from: target_line.from, to: target_line.to, insert: newLineText } });
+		}
+	}
+
+	if (inTable){
+		const table_start_reg = /^\s*\|/;
+		let start_line_number = target_line.number;
+		for (let i = start_line_number; i <= editor.lineCount(); i++){
+			let line = editorView.state.doc.line(i);
+			if (!table_start_reg.test(line.text)) break;
+			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+
+		for (let i = start_line_number; i >= 1; i--){
+			let line = editorView.state.doc.line(i);
+			if (!table_start_reg.test(line.text)) return;
+			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+	}
+
+	if (inCallout){
+		const callout_start_reg = /^>/;
+		let start_line_number = target_line.number;
+		for (let i = start_line_number; i <= editor.lineCount(); i++){
+			let line = editorView.state.doc.line(i);
+			if (!callout_start_reg.test(line.text)) break;
+			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+
+		for (let i = start_line_number; i >= 1; i--){
+			let line = editorView.state.doc.line(i);
+			if (!callout_start_reg.test(line.text)) return;
+			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+			if (newLineText){
+				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
+				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
+				return;
+			}
+		}
+	}
+
+}
+
+
+function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean){
+	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
+    let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+	const target_name_mdlink = target_name.replace(/ /g, '%20');
+	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return null;
+	const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
+	while(true){
+		let match = regWikiLink.exec(line_text);
+		if (!match) break;
+		let matched_link = match[0];
+		if (matched_link.includes(target_name)){
+			let newLineText = line_text.substring(0, match.index) + 
+								newWikiLink + 
+								line_text.substring(match.index+matched_link.length);
+			return newLineText;
+		}
+	}
+
+	while(true){
+		let match = regMdLink.exec(line_text);
+		if (!match) break;
+		let matched_link = match[0];
+		console.log('search MDLink')
+		if (matched_link.includes(target_name_mdlink)){
+			// 找到 matched_link 中的 altText
+			let alt_text_match = matched_link.match(/\[.*?\]/g) as string[];
+			let alt_text = alt_text_match[0].substring(1, alt_text_match[0].length-1);
+			let pure_alt = alt_text.replace(/\|\d+(\|\d+)?$/g, '');
+			if (intable){
+				pure_alt = alt_text.replace(/\\\|\d+(\|\d+)?$/g, '')
+			}
+			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${target_name_mdlink})`:`![${pure_alt}|${new_width}](${target_name_mdlink})`;
+			let newLineText = line_text.substring(0, match.index) + 
+								newMDLink + 
+								line_text.substring(match.index+matched_link.length);
+			return newLineText;
+		}
+	}
+}
+
+
+function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean){
+	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+	if (!line_text.includes(link) || !line_text.includes(alt_text)) return null;
+	const newExternalLink = intable ? `![${alt_text}\\|${new_width}](${link})` : `![${alt_text}|${new_width}](${link})`;
+	while(true){
+		let match = regMdLink.exec(line_text);
+		if (!match) break;
+		let matched_link = match[0];
+		if (matched_link.includes(link) && matched_link.includes(alt_text)){
+			let newLineText = line_text.substring(0, match.index) + 
+								newExternalLink + 
+								line_text.substring(match.index+matched_link.length);
+			return newLineText;
+		}
+	}
 }

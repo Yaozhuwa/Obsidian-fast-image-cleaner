@@ -10,7 +10,7 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
 
-let DEBUG = false;
+let DEBUG = true;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
 
 export const print=(message?: any, ...optionalParams: any[]) =>{
@@ -371,7 +371,7 @@ function copyFileToClipboardCMD(filePath: string) {
 		// 目前方案
 		// xclip -selection clipboard -t $(file --mime-type -b /path/to/your/file) -i /path/to/your/file
         // exec(`xclip -selection c < ${filePath}`, callback);
-		exec(`xclip -selection clipboard -t $(file --mime-type -b "${filePath}") -i "${filePath}"`, callback);
+		// exec(`xclip -selection clipboard -t $(file --mime-type -b "${filePath}") -i "${filePath}"`, callback);
     } else if (process.platform === 'win32') {
         exec(`powershell -command "Set-Clipboard -Path '${filePath}'"`, callback);
     }
