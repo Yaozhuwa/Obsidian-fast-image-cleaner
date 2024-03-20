@@ -10,7 +10,7 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
 
-let DEBUG = true;
+let DEBUG = false;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
 
 export const print=(message?: any, ...optionalParams: any[]) =>{
