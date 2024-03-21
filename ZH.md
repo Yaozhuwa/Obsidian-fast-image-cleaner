@@ -7,13 +7,13 @@
 利用这个插件，您可以在 [Obsidian](https://obsidian.md) 实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）
 
 ## 演示
-(1)实时预览模式下
+(1) 便捷的右键菜单
 
-<img src="assets/SourceModeMenu.png" width="600">
+<img src="assets/AttachFlow-ContextMenu.gif" width="600">
 
-(2)阅读模式下
+(2) 拖拽调整图片大小
 
-<img src="assets/ReadingModeMenu.png" width="600">
+<img src="assets/AttachFlow-GragResize.gif" width="600">
 
 ## 删除文件功能详细介绍
 

@@ -8,13 +8,13 @@ This nifty plugin enables seamless management of attachments and referenced link
 
 ## Showcase
 
-(1) In live preview mode
+(1) Handy Context Menu
 
-<img src="assets/SourceModeMenu.png" width="600">
+<img src="assets/AttachFlow-ContextMenu.gif" width="600">
 
-(2)In reading mode
+(2) Grag to Resize Images
 
-<img src="assets/ReadingModeMenu.png" width="600">
+<img src="assets/AttachFlow-GragResize.gif" width="600">
 
 ## Details for clear file feature
 
