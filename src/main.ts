@@ -110,7 +110,14 @@ export default class AttachFlowPlugin extends Plugin {
 
 					const inTable: boolean = img.closest('table') != null;
 					const inCallout: boolean = img.closest('.callout') != null;
+					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
 					print('InTable', inTable)
+					print('Target Element', img)
+					if (isExcalidraw){
+						print('Excalidraw file!');
+						return;
+					}
+					
 
 					const rect = img.getBoundingClientRect();
 					const x = event.clientX - rect.left;
@@ -168,6 +175,23 @@ export default class AttachFlowPlugin extends Plugin {
 									if (imageName?.startsWith('http')){
 										updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
 									}
+									else if(isExcalidraw){
+										// let target_name = img.getAttribute('filesource') as string;
+										// let file_base_name = target_name
+										// if(file_base_name.includes('/')){
+										// 	let temp_arr = file_base_name.split('/');
+										// 	file_base_name = temp_arr[temp_arr.length-1]
+										// }else if(file_base_name.includes('\\')){
+										// 	let temp_arr = file_base_name.split('\\');
+										// 	file_base_name = temp_arr[temp_arr.length-1]
+										// }
+										// file_base_name = file_base_name.endsWith('.md') ? 
+										// 	file_base_name.substring(0, file_base_name.length-3) : 
+										// 	file_base_name;
+										// print(target_name)
+										// print('excalidraw file:', file_base_name)
+										// updateInternalLink(activeView, img, target_pos, file_base_name, newWidth, newHeight, inTable, inCallout);
+									}
 									else{
 										imageName = img.parentElement?.getAttribute('src') as string;
 										updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
@@ -204,6 +228,9 @@ export default class AttachFlowPlugin extends Plugin {
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
 					const edgeSize = 30; // size of the edge in pixels
+
+					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
+					if (isExcalidraw) return;
 
 					// Throttle mousemove events
 					let lastMove = 0;
@@ -310,8 +337,8 @@ export default class AttachFlowPlugin extends Plugin {
 	 */
 	addMenuExtendedPreviewMode = (menu: Menu, FileBaseName: string, currentMd: TFile) => {
 		const file = Util.getFileByBaseName(currentMd, FileBaseName) as TFile;
-		const basePath = (file.vault.adapter as any).basePath;
-		const relativeFilePath = file.path;
+		// const basePath = (file.vault.adapter as any).basePath;
+		// const relativeFilePath = file.path;
 
 		menu.addItem((item: MenuItem) =>
 			item
@@ -359,12 +386,6 @@ export default class AttachFlowPlugin extends Plugin {
 		// console.log('target, localName', target, target.localName)
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
-
-		const RegFileBaseName = new RegExp(/\/?([^\/\n]+\.[\w\d]+$)/, "m");
-		let target_name = target.parentElement?.getAttribute("src") as string;
-		const FileBaseName = (target_name?.match(RegFileBaseName) as string[])[0];
-		// console.log('target_name', target_name)
-		// console.log('FileBaseName', FileBaseName)
 		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
 		const menu = new Menu();
@@ -376,9 +397,28 @@ export default class AttachFlowPlugin extends Plugin {
 		const inTable: boolean = target.closest('table') != null;
 		const inCallout: boolean = target.closest('.callout') != null;
 		const inPreview:boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+		const isExcalidraw:boolean = target.classList.contains('excalidraw-embedded-img');
 
-		// 判断当前是否是阅读模式
-		// console.log('Mode:', this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode());
+		let target_name = target.getAttribute("src") as string;
+		if (isExcalidraw){
+			target_name = target.getAttribute('filesource') as string;
+			let file_base_name = target_name
+			if(file_base_name.includes('/')){
+				let temp_arr = file_base_name.split('/');
+				file_base_name = temp_arr[temp_arr.length-1]
+			}else if(file_base_name.includes('\\')){
+				let temp_arr = file_base_name.split('\\');
+				file_base_name = temp_arr[temp_arr.length-1]
+			}
+			file_base_name = file_base_name.endsWith('.md') ? 
+				file_base_name.substring(0, file_base_name.length-3) : 
+				file_base_name;
+			target_name = file_base_name;
+		}
+		else{
+			target_name = target.parentElement?.getAttribute("src") as string;
+		}
+
 		if (inPreview) {
 			if (SupportedTargetType.includes(curTargetType)) {
 				// console.log("FileBaseName", FileBaseName);
@@ -450,6 +490,10 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 					insert: matched[0].new_link 
 				} 
 			});
+			// editor.replaceRange(matched[0].new_link, 
+			// 	{line:target_line.number-1, ch:matched[0].from_ch}, 
+			// 	{line:target_line.number-1, ch:matched[0].to_ch}
+			// 	);
 		}
 		else if(matched.length==0){
 			// new Notice('Fail to find current image-link, please zoom manually!')
@@ -667,7 +711,11 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 			if (intable){
 				pure_alt = alt_text.replace(/\\\|\d+(\|\d+)?$/g, '')
 			}
-			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${target_name_mdlink})`:`![${pure_alt}|${new_width}](${target_name_mdlink})`;
+			let link_text = matched_link.substring(alt_text_match[0].length+2, matched_link.length-1)
+			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${link_text})`:`![${pure_alt}|${new_width}](${link_text})`;
+			if (/^\d*$/.test(alt_text)){
+				newMDLink = `![${new_width}](${link_text})`;
+			}
 			// let newLineText = line_text.substring(0, match.index) + 
 			// 					newMDLink + 
 			// 					line_text.substring(match.index+matched_link.length);
@@ -690,9 +738,12 @@ function matchLineWithExternalLink(line_text: string, link: string, alt_text: st
 	let result: MatchedLinkInLine[] = []
 	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
 	if (!line_text.includes(link) || !line_text.includes(alt_text)) return [];
-	const newExternalLink = intable ? 
+	let newExternalLink = intable ? 
 		`![${alt_text}\\|${new_width}](${link})` : 
 		`![${alt_text}|${new_width}](${link})`;
+	if (/^\d*$/.test(alt_text) || /^\s*$/.test(alt_text)){
+		newExternalLink = `![${new_width}](${link})`;
+	}
 	while(true){
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
