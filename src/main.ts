@@ -11,7 +11,14 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
+import { match } from "assert";
 
+interface MatchedLinkInLine{
+	old_link:string, 
+	new_link: string, 
+	from_ch: number, 
+	to_ch: number
+}
 
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
@@ -174,12 +181,6 @@ export default class AttachFlowPlugin extends Plugin {
 						}
 
 						const onMouseUp = (event: MouseEvent) => {
-							// const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-							// //  @ts-expect-error, not typed
-							// const editorView = editor.cm as EditorView;
-							// if (table_changes){
-							// 	editorView.dispatch(table_changes[0]);
-							// }
 							event.preventDefault()
 							img.style.borderStyle = 'none'
 							img.style.outline = 'none';
@@ -438,64 +439,80 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	// print('target line information: line-content, line-number(1-based), target.ch');
 	// print(target_line.text, target_line.number, target_pos - target_line.from);
 
+
 	if (!inCallout && !inTable){
-		let newLineText = matchLineWithInternalLink(target_line.text, imageName, newWidth, inTable);
-		if (newLineText){
-			editorView.dispatch({ changes: { from: target_line.from, to: target_line.to, insert: newLineText } });
+		let matched = matchLineWithInternalLink(target_line.text, imageName, newWidth, inTable);
+		if (matched.length==1){
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from+matched[0].from_ch, 
+					to: target_line.from+matched[0].to_ch, 
+					insert: matched[0].new_link 
+				} 
+			});
 		}
+		else if(matched.length==0){
+			new Notice('Fail to find current image-link, please zoom manually!')
+		}
+		else{
+			new Notice('Find multiple same image-link in line, please zoom manually!')
+		}
+		return;
 	}
 
-	if (inTable){
-		const table_start_reg = /^\s*\|/;
-		let start_line_number = target_line.number;
-		for (let i = start_line_number; i <= editor.lineCount(); i++){
-			let line = editorView.state.doc.line(i);
-			if (!table_start_reg.test(line.text)) break;
-			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	type RegDictionary = {
+		[key: string]: RegExp;
+	};
+	
+	let startReg: RegDictionary = {
+		'table': /^\s*\|/,
+		'callout': /^>/,
+	};
 
-		for (let i = start_line_number; i >= 1; i--){
-			let line = editorView.state.doc.line(i);
-			if (!table_start_reg.test(line.text)) return;
-			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	let mode = inTable ? 'table' : 'callout';
+	print('mode', mode)
+
+	const start_reg = startReg[mode];
+	let start_line_number = target_line.number;
+	let matched_results: MatchedLinkInLine[] = [];
+	let matched_lines: number[] = [];  //1-based
+	for (let i = start_line_number; i <= editor.lineCount(); i++){
+		let line = editorView.state.doc.line(i);
+		if (!start_reg.test(line.text)) break;
+		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+		matched_results.push(...matched);
+		matched_lines.push(...new Array(matched.length).fill(i));
 	}
 
-	if (inCallout){
-		const callout_start_reg = /^>/;
-		let start_line_number = target_line.number;
-		for (let i = start_line_number; i <= editor.lineCount(); i++){
-			let line = editorView.state.doc.line(i);
-			if (!callout_start_reg.test(line.text)) break;
-			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
-
-		for (let i = start_line_number; i >= 1; i--){
-			let line = editorView.state.doc.line(i);
-			if (!callout_start_reg.test(line.text)) return;
-			let newLineText = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	for (let i = start_line_number-1; i >= 1; i--){
+		let line = editorView.state.doc.line(i);
+		if (!start_reg.test(line.text)) break;
+		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
+		matched_results.push(...matched);
+		matched_lines.push(...new Array(matched.length).fill(i));
 	}
+
+	// print("Matched Information")
+	// print(matched_results)
+	// print(matched_lines)
+
+	if (matched_results.length==1){
+		let target_line = editorView.state.doc.line(matched_lines[0]);
+		editorView.dispatch({ 
+			changes: { 
+				from: target_line.from+matched_results[0].from_ch, 
+				to: target_line.from+matched_results[0].to_ch, 
+				insert: matched_results[0].new_link 
+			} 
+		});
+	}
+	else if(matched_results.length==0){
+		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
+	}
+	else{
+		new Notice(`Find multiple same image-link in ${mode}, please zoom manually!`)
+	}
+	return;
 }
 
 
@@ -507,92 +524,113 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 	const link = target.getAttribute('src') as string;
 	const altText = target.getAttribute("alt") as string;
-	let pureAltText = altText.replace(/\|\d+(\|\d+)?$/g, '');
 
 	if (!inCallout && !inTable){
-		let newLineText = matchLineWithExternalLink(target_line.text, link, altText, newWidth, inTable);
-		if (newLineText){
-			editorView.dispatch({ changes: { from: target_line.from, to: target_line.to, insert: newLineText } });
+		let matched = matchLineWithExternalLink(target_line.text, link, altText, newWidth, inTable);
+		if (matched.length==1){
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from+matched[0].from_ch, 
+					to: target_line.from+matched[0].to_ch, 
+					insert: matched[0].new_link 
+				} 
+			});
 		}
+		else if(matched.length==0){
+			new Notice('Fail to find current image-link, please zoom manually!')
+		}
+		else{
+			new Notice('Find multiple same image-link in line, please zoom manually!')
+		}
+		return;
 	}
 
-	if (inTable){
-		const table_start_reg = /^\s*\|/;
-		let start_line_number = target_line.number;
-		for (let i = start_line_number; i <= editor.lineCount(); i++){
-			let line = editorView.state.doc.line(i);
-			if (!table_start_reg.test(line.text)) break;
-			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	type RegDictionary = {
+		[key: string]: RegExp;
+	};
+	
+	let startReg: RegDictionary = {
+		'table': /^\s*\|/,
+		'callout': /^>/,
+	};
 
-		for (let i = start_line_number; i >= 1; i--){
-			let line = editorView.state.doc.line(i);
-			if (!table_start_reg.test(line.text)) return;
-			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	let mode = inTable ? 'table' : 'callout';
+	print('mode', mode)
+
+	const start_reg = startReg[mode];
+	let start_line_number = target_line.number;
+	let matched_results: MatchedLinkInLine[] = [];
+	let matched_lines: number[] = [];  //1-based
+	for (let i = start_line_number; i <= editor.lineCount(); i++){
+		let line = editorView.state.doc.line(i);
+		if (!start_reg.test(line.text)) break;
+		let matched = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+		matched_results.push(...matched);
+		matched_lines.push(...new Array(matched.length).fill(i));
 	}
 
-	if (inCallout){
-		const callout_start_reg = /^>/;
-		let start_line_number = target_line.number;
-		for (let i = start_line_number; i <= editor.lineCount(); i++){
-			let line = editorView.state.doc.line(i);
-			if (!callout_start_reg.test(line.text)) break;
-			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
-
-		for (let i = start_line_number; i >= 1; i--){
-			let line = editorView.state.doc.line(i);
-			if (!callout_start_reg.test(line.text)) return;
-			let newLineText = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
-			if (newLineText){
-				// editor.replaceRange(newLineText, {line: i-1, ch:0}, {line:i-1, ch:line.text.length})
-				editorView.dispatch({changes: { from: line.from, to: line.to, insert: newLineText}})
-				return;
-			}
-		}
+	for (let i = start_line_number-1; i >= 1; i--){
+		let line = editorView.state.doc.line(i);
+		if (!start_reg.test(line.text)) break;
+		let matched = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
+		matched_results.push(...matched);
+		matched_lines.push(...new Array(matched.length).fill(i));
 	}
+
+	print(matched_results)
+	print(matched_lines)
+
+	if (matched_results.length==1){
+		let target_line = editorView.state.doc.line(matched_lines[0]);
+		editorView.dispatch({ 
+			changes: { 
+				from: target_line.from+matched_results[0].from_ch, 
+				to: target_line.from+matched_results[0].to_ch, 
+				insert: matched_results[0].new_link 
+			} 
+		});
+	}
+	else if(matched_results.length==0){
+		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
+	}
+	else{
+		new Notice(`Find multiple same image-link in ${mode}, please zoom manually!`)
+	}
+	return;
 
 }
 
 
-function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean){
+function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean): MatchedLinkInLine[]
+{
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
     let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
 	const target_name_mdlink = target_name.replace(/ /g, '%20');
-	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return null;
+	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return [];
+
+	let result: MatchedLinkInLine[] = [];
 	const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
 	while(true){
 		let match = regWikiLink.exec(line_text);
 		if (!match) break;
-		let matched_link = match[0];
+		const matched_link = match[0];
 		if (matched_link.includes(target_name)){
-			let newLineText = line_text.substring(0, match.index) + 
-								newWikiLink + 
-								line_text.substring(match.index+matched_link.length);
-			return newLineText;
+			// let newLineText = line_text.substring(0, match.index) + 
+			// 					newWikiLink + 
+			// 					line_text.substring(match.index+matched_link.length);
+			result.push({
+				old_link:matched_link,
+				new_link:newWikiLink, 
+				from_ch:match.index, 
+				to_ch:match.index+matched_link.length
+			});
 		}
 	}
 
 	while(true){
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
-		let matched_link = match[0];
+		const matched_link = match[0];
 		if (matched_link.includes(target_name_mdlink)){
 			// 找到 matched_link 中的 altText
 			let alt_text_match = matched_link.match(/\[.*?\]/g) as string[];
@@ -602,28 +640,48 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 				pure_alt = alt_text.replace(/\\\|\d+(\|\d+)?$/g, '')
 			}
 			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${target_name_mdlink})`:`![${pure_alt}|${new_width}](${target_name_mdlink})`;
-			let newLineText = line_text.substring(0, match.index) + 
-								newMDLink + 
-								line_text.substring(match.index+matched_link.length);
-			return newLineText;
+			// let newLineText = line_text.substring(0, match.index) + 
+			// 					newMDLink + 
+			// 					line_text.substring(match.index+matched_link.length);
+			result.push({
+				old_link:matched_link,
+				new_link:newMDLink, 
+				from_ch:match.index, 
+				to_ch:match.index+matched_link.length
+			});
 		}
 	}
+	print("Line Text: ", line_text)
+	print("MatchedInfo:", result);
+	return result;
 }
 
 
-function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean){
+function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[]
+{
+	let result: MatchedLinkInLine[] = []
 	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
-	if (!line_text.includes(link) || !line_text.includes(alt_text)) return null;
-	const newExternalLink = intable ? `![${alt_text}\\|${new_width}](${link})` : `![${alt_text}|${new_width}](${link})`;
+	if (!line_text.includes(link) || !line_text.includes(alt_text)) return [];
+	const newExternalLink = intable ? 
+		`![${alt_text}\\|${new_width}](${link})` : 
+		`![${alt_text}|${new_width}](${link})`;
 	while(true){
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
 		let matched_link = match[0];
 		if (matched_link.includes(link) && matched_link.includes(alt_text)){
-			let newLineText = line_text.substring(0, match.index) + 
-								newExternalLink + 
-								line_text.substring(match.index+matched_link.length);
-			return newLineText;
+			// let newLineText = line_text.substring(0, match.index) + 
+			// 					newExternalLink + 
+			// 					line_text.substring(match.index+matched_link.length);
+			result.push({
+				old_link:matched_link, 
+				new_link: newExternalLink, 
+				from_ch:match.index, 
+				to_ch:match.index+matched_link.length
+			});
 		}
 	}
+	print("Line Text: ", line_text)
+	print("MatchedInfo:", result);
+	return result;
 }
