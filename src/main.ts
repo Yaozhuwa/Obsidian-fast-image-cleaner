@@ -452,7 +452,7 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 			});
 		}
 		else if(matched.length==0){
-			new Notice('Fail to find current image-link, please zoom manually!')
+			// new Notice('Fail to find current image-link, please zoom manually!')
 		}
 		else{
 			new Notice('Find multiple same image-link in line, please zoom manually!')
@@ -498,13 +498,27 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 	if (matched_results.length==1){
 		let target_line = editorView.state.doc.line(matched_lines[0]);
-		editorView.dispatch({ 
-			changes: { 
-				from: target_line.from+matched_results[0].from_ch, 
-				to: target_line.from+matched_results[0].to_ch, 
-				insert: matched_results[0].new_link 
-			} 
-		});
+		if (mode == 'table'){
+			let old_text = target_line.text;
+			let new_line_text = old_text.substring(0, matched_results[0].from_ch) +
+						matched_results[0].new_link + 
+						old_text.substring(matched_results[0].to_ch);
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from, 
+					to: target_line.from+old_text.length, 
+					insert: new_line_text
+				} 
+			});
+		}else{
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from+matched_results[0].from_ch, 
+					to: target_line.from+matched_results[0].to_ch, 
+					insert: matched_results[0].new_link 
+				} 
+			});
+		}
 	}
 	else if(matched_results.length==0){
 		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
@@ -537,7 +551,7 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 			});
 		}
 		else if(matched.length==0){
-			new Notice('Fail to find current image-link, please zoom manually!')
+			// new Notice('Fail to find current image-link, please zoom manually!')
 		}
 		else{
 			new Notice('Find multiple same image-link in line, please zoom manually!')
@@ -582,13 +596,27 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 	if (matched_results.length==1){
 		let target_line = editorView.state.doc.line(matched_lines[0]);
-		editorView.dispatch({ 
-			changes: { 
-				from: target_line.from+matched_results[0].from_ch, 
-				to: target_line.from+matched_results[0].to_ch, 
-				insert: matched_results[0].new_link 
-			} 
-		});
+		if (mode == 'table'){
+			let old_text = target_line.text;
+			let new_line_text = old_text.substring(0, matched_results[0].from_ch) +
+						matched_results[0].new_link + 
+						old_text.substring(matched_results[0].to_ch);
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from, 
+					to: target_line.from+old_text.length, 
+					insert: new_line_text
+				} 
+			});
+		}else{
+			editorView.dispatch({ 
+				changes: { 
+					from: target_line.from+matched_results[0].from_ch, 
+					to: target_line.from+matched_results[0].to_ch, 
+					insert: matched_results[0].new_link 
+				} 
+			});
+		}
 	}
 	else if(matched_results.length==0){
 		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
