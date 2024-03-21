@@ -103,6 +103,9 @@ export default class AttachFlowPlugin extends Plugin {
 						event.preventDefault();
 					}
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
+
+					const currentMd = app.workspace.getActiveFile() as TFile;
+					if (currentMd.name.endsWith('.canvas')) return;
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 					//  @ts-expect-error, not typed
 					const editorView = editor.cm as EditorView;
@@ -226,6 +229,9 @@ export default class AttachFlowPlugin extends Plugin {
 				"img, video",
 				(event: MouseEvent) => {
 					if(!this.settings.dragResize) return;
+					const currentMd = app.workspace.getActiveFile() as TFile;
+					if (currentMd.name.endsWith('.canvas')) return;
+
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
 					const edgeSize = 30; // size of the edge in pixels
@@ -266,6 +272,8 @@ export default class AttachFlowPlugin extends Plugin {
 				"img, video",
 				(event: MouseEvent) => {
 					if(!this.settings.dragResize) return;
+					const currentMd = app.workspace.getActiveFile() as TFile;
+					if (currentMd.name.endsWith('.canvas')) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					img.style.borderStyle = 'none';
 					img.style.cursor = 'default';
@@ -384,10 +392,9 @@ export default class AttachFlowPlugin extends Plugin {
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
 		const curTargetType = target.localName;
-		// console.log(target.parentElement)
-		// console.log('target, localName', target, target.localName)
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
+		if (currentMd.name.endsWith('.canvas')) return;
 		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
 		const menu = new Menu();
