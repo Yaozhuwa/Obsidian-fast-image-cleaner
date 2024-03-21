@@ -1,16 +1,21 @@
 import AttachFlowPlugin from './main';
 import { PluginSettingTab, Setting, App } from 'obsidian';
+import { setDebug } from './util';
 
 
 
 export interface AttachFlowSettings {
     deleteOption: string;
     logsModal: boolean;
+    dragResize: boolean;
+    debug: boolean;
 }
 
 export const DEFAULT_SETTINGS: AttachFlowSettings = {
     deleteOption: '.trash',
     logsModal: true,
+    dragResize: false,
+    debug: false,
 };
 
 
@@ -43,5 +48,28 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
                     this.plugin.saveSettings();
                 });
             });
+
+        new Setting(containerEl)
+			.setName("Drag To Resize Images")
+			.setDesc("拖拽调整图片大小")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.dragResize)
+					.onChange(async (value) => {
+						this.plugin.settings.dragResize = value;
+						await this.plugin.saveSettings();
+					});
+			});
+        
+        new Setting(containerEl)
+			.setName("Print Debug Information")
+			.setDesc("控制台输出调试信息")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.debug)
+					.onChange(async (value) => {
+						this.plugin.settings.debug = value;
+                        setDebug(value);
+						await this.plugin.saveSettings();
+					});
+			});
     }
 }

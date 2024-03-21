@@ -3,7 +3,7 @@ import { addCommand } from "./config/addCommand-config";
 import { AttachFlowSettingsTab } from "./settings";
 import { AttachFlowSettings, DEFAULT_SETTINGS } from "./settings";
 import * as Util from "./util";
-import { print } from './util'
+import { print, setDebug } from './util'
 import { getMouseEventTarget } from "./utils/handlerEvent";
 import { DeleteAllLogsModal } from "./modals/deletionPrompt";
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
@@ -11,7 +11,6 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
-import { match } from "assert";
 
 interface MatchedLinkInLine{
 	old_link:string, 
@@ -30,7 +29,6 @@ export default class AttachFlowPlugin extends Plugin {
 
 		await this.loadSettings();
 		this.registerDocument(document);
-
 		app.workspace.on("window-open", (workspaceWindow, window) => {
 			this.registerDocument(window.document);
 		});
@@ -54,6 +52,8 @@ export default class AttachFlowPlugin extends Plugin {
 		);
 		// register all commands in addCommand function
 		addCommand(this);
+
+		setDebug(this.settings.debug);
 	}
 
 	onunload() {
@@ -98,6 +98,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mousedown",
 				"img, video",
 				(event: MouseEvent) => {
+					if(!this.settings.dragResize) return;
 					if (event.button === 0) {
 						event.preventDefault();
 					}
@@ -224,7 +225,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mouseover",
 				"img, video",
 				(event: MouseEvent) => {
-					// if (!this.settings.resizeByDragging) return;
+					if(!this.settings.dragResize) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
 					const edgeSize = 30; // size of the edge in pixels
@@ -235,6 +236,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// Throttle mousemove events
 					let lastMove = 0;
 					const mouseOverHandler = (event: MouseEvent) => {
+						if(!this.settings.dragResize) return;
 						const now = Date.now();
 						if (now - lastMove < 100) return; // Only execute once every 100ms
 						lastMove = now;
@@ -263,7 +265,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mouseout",
 				"img, video",
 				(event: MouseEvent) => {
-					// if (!this.settings.resizeByDragging) return;
+					if(!this.settings.dragResize) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					img.style.borderStyle = 'none';
 					img.style.cursor = 'default';

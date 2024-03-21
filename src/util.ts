@@ -10,13 +10,17 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
 
-let DEBUG = true;
+export let DEBUG:boolean = false;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
 
 export const print=(message?: any, ...optionalParams: any[]) =>{
     if (DEBUG) {
         console.log(message, ...optionalParams);
     }
+}
+
+export function setDebug(value: boolean) {
+    DEBUG = value;
 }
 
 /**
