@@ -99,13 +99,15 @@ export default class AttachFlowPlugin extends Plugin {
 				"img, video",
 				(event: MouseEvent) => {
 					if(!this.settings.dragResize) return;
+					const currentMd = app.workspace.getActiveFile() as TFile;
+					if (currentMd.name.endsWith('.canvas')) return;
+					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+					if (inPreview) return;
+
 					if (event.button === 0) {
 						event.preventDefault();
 					}
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
-
-					const currentMd = app.workspace.getActiveFile() as TFile;
-					if (currentMd.name.endsWith('.canvas')) return;
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 					//  @ts-expect-error, not typed
 					const editorView = editor.cm as EditorView;
@@ -231,6 +233,8 @@ export default class AttachFlowPlugin extends Plugin {
 					if(!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
+					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+					if (inPreview) return;
 
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
@@ -274,6 +278,8 @@ export default class AttachFlowPlugin extends Plugin {
 					if(!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
+					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+					if (inPreview) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					img.style.borderStyle = 'none';
 					img.style.cursor = 'default';
@@ -334,6 +340,18 @@ export default class AttachFlowPlugin extends Plugin {
 					}
 				})
 		);
+		// menu.addItem((item: MenuItem) =>
+		// 	item
+		// 		.setIcon("pencil")
+		// 		.setTitle("Rename")
+		// 		.onClick(async () => {
+		// 			try {
+		// 				print("test rename")
+		// 			} catch {
+		// 				new Notice("Error, could not rename the file!");
+		// 			}
+		// 		})
+		// )
 		this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
 	};
 
