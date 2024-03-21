@@ -340,18 +340,19 @@ export default class AttachFlowPlugin extends Plugin {
 					}
 				})
 		);
-		// menu.addItem((item: MenuItem) =>
-		// 	item
-		// 		.setIcon("pencil")
-		// 		.setTitle("Rename")
-		// 		.onClick(async () => {
-		// 			try {
-		// 				print("test rename")
-		// 			} catch {
-		// 				new Notice("Error, could not rename the file!");
-		// 			}
-		// 		})
-		// )
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("pencil")
+				.setTitle("Rename")
+				.onClick(async () => {
+					try {
+						print("test rename")
+						Util.handlerRenameFile(FileBaseName, currentMd, this);
+					} catch {
+						new Notice("Error, could not rename the file!");
+					}
+				})
+		)
 		this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
 	};
 

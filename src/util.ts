@@ -9,6 +9,7 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
+import { App, Modal, Setting } from "obsidian";
 
 export let DEBUG:boolean = false;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
@@ -426,3 +427,105 @@ const findLinkInLine = (file_name: string, line_text: string) =>{
 	}
 	return search_result;
 }
+
+
+export const handlerRenameFile = (
+	FileBaseName: string,
+	currentMd: TFile,
+	plugin: AttachFlowPlugin
+) => {
+	const target_file = getFileByBaseName(currentMd, FileBaseName) as TFile;
+	let path = target_file.path;
+	let name = target_file.name;
+	let target_folder = path.substring(0, path.length-name.length);
+	let file_type = name.split('.').pop() as string;
+	new RenameModal(plugin.app, 
+		target_folder, 
+		name.substring(0, name.length-file_type.length-1), 
+		file_type, 
+		(result) => {
+		if (!result) return;
+		if(result==path) return;
+		app.vault.adapter.exists(result)
+		.then((exists) => {
+			if(exists) {
+				new Notice(`Fail to rename for there alreay exist file ${result}`);
+			} else {
+				plugin.app.fileManager.renameFile(target_file, `${result}`);
+			}
+		});
+	}).open();
+}
+
+
+
+export class RenameModal extends Modal {
+	result: string;
+	folder: string;
+	name: string;
+	filetype: string;
+	onSubmit: (result: string) => void;
+  
+	constructor(app: App, folder:string, name:string, filetype:string, onSubmit: (result: string) => void) {
+	  super(app);
+	  this.onSubmit = onSubmit;
+	  this.folder = folder;
+	  this.name = name;
+	  this.filetype = filetype;
+	}
+  
+	onOpen() {
+		const { contentEl } = this;
+		let setting = new Setting(contentEl)
+			.setName("Rename:")
+			.addText(text => text
+				.setValue(this.name)
+				.onChange((value) => {
+					this.result = `${this.folder}${value}.${this.filetype}`;
+				})
+			);
+
+		// 使 DOM 有足够的时间渲染表单元素
+		setTimeout(() => {
+			let inputBox = setting.settingEl.querySelector('input[type="text"]');
+			if (inputBox && inputBox.parentElement) {
+				let folder_indicator = document.createElement('label');
+				folder_indicator.innerText = `${this.folder}`;
+				folder_indicator.style.marginRight = '4px';  // 可以根据需要调整间距
+				inputBox.parentElement.insertBefore(folder_indicator, inputBox);
+
+				let file_type_indicator = document.createElement('label');
+				file_type_indicator.innerText = `.${this.filetype}`;
+				file_type_indicator.style.marginLeft = '4px';  // 可以根据需要调整间距
+				inputBox.after(file_type_indicator);
+
+				// 获取设置界面的上级元素 
+				let parentEl = setting.settingEl.parentElement;
+				if (parentEl) {
+					// 使其子元素居中显示
+					parentEl.style.display = 'flex';
+					parentEl.style.justifyContent = 'center';
+				}
+				// 转换inputBox类型并选择输入框的文本
+				let inputElem = inputBox as HTMLInputElement;
+				inputElem.select();
+			} else {
+				console.error("无法找到文本输入框");
+			}
+		}, 0);
+
+		// Enter to submit
+		this.scope.register([], "Enter", (evt: KeyboardEvent) => {
+			if (evt.isComposing) {
+				return;
+			}
+			this.close();
+			this.onSubmit(this.result);
+		});
+	}
+  
+	onClose() {
+	  let { contentEl } = this;
+	  contentEl.empty();
+	}
+  }
