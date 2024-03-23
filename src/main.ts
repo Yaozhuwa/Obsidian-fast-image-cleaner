@@ -428,6 +428,8 @@ export default class AttachFlowPlugin extends Plugin {
 		const isExcalidraw:boolean = target.classList.contains('excalidraw-embedded-img');
 
 		let target_name = target.getAttribute("src") as string;
+		// 对于 Callout 和 Table 中的网络图片，没有右键菜单
+		if (target_name.startsWith('http')) return;
 		if (isExcalidraw){
 			target_name = target.getAttribute('filesource') as string;
 			let file_base_name = target_name
@@ -489,7 +491,7 @@ export default class AttachFlowPlugin extends Plugin {
 		this.registerEscapeButton(menu);
 		
 		if (inTable && !inPreview){
-			menu.showAtPosition({ x: event.pageX, y: event.pageY-136});
+			menu.showAtPosition({ x: event.pageX, y: event.pageY-163});
 		}
 		else{
 			menu.showAtPosition({ x: event.pageX, y: event.pageY });
