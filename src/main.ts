@@ -722,20 +722,36 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return [];
 
 	let result: MatchedLinkInLine[] = [];
-	const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
+	// const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
 	while(true){
-		let match = regWikiLink.exec(line_text);
-		if (!match) break;
-		const matched_link = match[0];
+		let wiki_match = regWikiLink.exec(line_text);
+		if (!wiki_match) break;
+		const matched_link = wiki_match[0];
 		if (matched_link.includes(target_name)){
-			// let newLineText = line_text.substring(0, match.index) + 
-			// 					newWikiLink + 
-			// 					line_text.substring(match.index+matched_link.length);
+			let normal_link = intable ? matched_link.replace(/\\\|/g, '|'): matched_link;
+			console.log(normal_link)
+			let link_match = normal_link.match(/!\[\[(.*?)(\||\]\])/);
+			let link_text = link_match?link_match[1]:'';
+
+			let alt_match = matched_link.match(/!\[\[.*?(\|(.*?))\]\]/);
+			let alt_text = alt_match ? alt_match[1] : '';
+			let alt_text_list = alt_text.split('|');
+			let alt_text_wo_size = '';
+			let new_alt_text = ''
+			for (let alt of alt_text_list){
+				if (!/^\d+$/.test(alt) && !/^\s*$/.test(alt)){
+					alt_text_wo_size = alt_text_wo_size + '|' + alt;
+				}
+			}
+			new_alt_text = new_width!=0?`${alt_text_wo_size}|${new_width}`:alt_text_wo_size;
+			new_alt_text = intable ? new_alt_text.replace(/\|/g, '\\|'): new_alt_text;
+			let newWikiLink = link_match? `![[${link_text}${new_alt_text}]]`:`![[${target_name}${new_alt_text}]]`;
+
 			result.push({
 				old_link:matched_link,
 				new_link:newWikiLink, 
-				from_ch:match.index, 
-				to_ch:match.index+matched_link.length
+				from_ch:wiki_match.index, 
+				to_ch:wiki_match.index+matched_link.length
 			});
 		}
 	}
