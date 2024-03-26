@@ -12,7 +12,7 @@ This nifty plugin enables seamless management of attachments and referenced link
 
 <img src="assets/AttachFlow-ContextMenu.gif" width="600">
 
-(2) Grag to Resize Images
+(2) Drag to Resize Images
 
 <img src="assets/AttachFlow-GragResize.gif" width="600">
 

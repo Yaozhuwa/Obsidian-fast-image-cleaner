@@ -413,7 +413,7 @@ export default class AttachFlowPlugin extends Plugin {
 		const curTargetType = target.localName;
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
-		if (currentMd.name.endsWith('.canvas')) return;
+		const inCanvas = currentMd.name.endsWith('.canvas');
 		const SupportedTargetType = ["img", "iframe", "video", "div", "audio"];
 
 		const menu = new Menu();
@@ -430,6 +430,16 @@ export default class AttachFlowPlugin extends Plugin {
 		let target_name = target.getAttribute("src") as string;
 		// 对于 Callout 和 Table 中的网络图片，没有右键菜单
 		if (target_name.startsWith('http')) return;
+
+		if (inCanvas){
+			// 如果是图像节点，返回
+			if (target.parentElement?.classList.contains('canvas-node-content')) return;
+			let file_name = target.parentElement?.getAttribute('src');
+			// print("Target Name:", file_name);
+
+			return;
+		}
+
 		if (isExcalidraw){
 			target_name = target.getAttribute('filesource') as string;
 			let file_base_name = target_name
