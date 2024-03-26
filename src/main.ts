@@ -121,9 +121,9 @@ export default class AttachFlowPlugin extends Plugin {
 					print('Target Element', img)
 					if (isExcalidraw){
 						print('Excalidraw file!');
-						return;
+						// return;
 					}
-					
+					// print("img.parent", img.parentElement?img.parentElement:'NULL')
 
 					const rect = img.getBoundingClientRect();
 					const x = event.clientX - rect.left;
@@ -182,21 +182,22 @@ export default class AttachFlowPlugin extends Plugin {
 										updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
 									}
 									else if(isExcalidraw){
-										// let target_name = img.getAttribute('filesource') as string;
-										// let file_base_name = target_name
-										// if(file_base_name.includes('/')){
-										// 	let temp_arr = file_base_name.split('/');
-										// 	file_base_name = temp_arr[temp_arr.length-1]
-										// }else if(file_base_name.includes('\\')){
-										// 	let temp_arr = file_base_name.split('\\');
-										// 	file_base_name = temp_arr[temp_arr.length-1]
-										// }
-										// file_base_name = file_base_name.endsWith('.md') ? 
-										// 	file_base_name.substring(0, file_base_name.length-3) : 
-										// 	file_base_name;
-										// print(target_name)
-										// print('excalidraw file:', file_base_name)
-										// updateInternalLink(activeView, img, target_pos, file_base_name, newWidth, newHeight, inTable, inCallout);
+										let target_name = img.getAttribute('filesource') as string;
+										let draw_base_name = target_name
+										if(draw_base_name.includes('/')){
+											let temp_arr = draw_base_name.split('/');
+											draw_base_name = temp_arr[temp_arr.length-1]
+										}else if(draw_base_name.includes('\\')){
+											let temp_arr = draw_base_name.split('\\');
+											draw_base_name = temp_arr[temp_arr.length-1]
+										}
+										draw_base_name = draw_base_name.endsWith('.md') ?
+											draw_base_name.substring(0, draw_base_name.length-3) :
+											draw_base_name;
+										print(target_name)
+										print('excalidraw file:', draw_base_name)
+										img.style.maxWidth = 'none';
+										updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
 									}
 									else{
 										imageName = img.parentElement?.getAttribute('src') as string;
@@ -241,7 +242,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const edgeSize = 30; // size of the edge in pixels
 
 					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
-					if (isExcalidraw) return;
+					// if (isExcalidraw) return;
 
 					// Throttle mousemove events
 					let lastMove = 0;
