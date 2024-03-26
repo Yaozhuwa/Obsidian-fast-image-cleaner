@@ -1,3 +1,8 @@
+- AttachFlow v0.2.3 2024-03-26
+  - 支持 Excalidraw 的缩放（Excalidraw 设置：嵌入 Markdown 的绘图格式为 PNG Image 或 SVG Image）
+  - 现在图像缩放时会保留 WIKI 链接的别名
+  - 修复表格中右键菜单的位置
+  - 意外收获：不用改代码就支持 PDF++ 的矩形选框图像的缩放
 - AttachFlow v0.2.2 2024-03-21
   - 右键菜单增加重命名文件功能（会自动更新相关链接）
 - AttachFlow v0.2.1 2024-03-21
