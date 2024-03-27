@@ -85,8 +85,8 @@ export const getFileByBaseName = (
 	for (const [mdFile, links] of Object.entries(resolvedLinks)) {
 		if (currentMd.path === mdFile) {
 			for (const [filePath, nr] of Object.entries(links)) {
-				print('filePath', filePath)
-				print(FileBaseName)
+				// print('filePath', filePath)
+				// print(FileBaseName)
 				if (filePath.includes(FileBaseName)) {
 					try {
 						const AttachFile: TFile =

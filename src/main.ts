@@ -430,7 +430,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 		let target_name = target.getAttribute("src") as string;
 		// 对于 Callout 和 Table 中的网络图片，没有右键菜单
-		if (target_name.startsWith('http')) return;
+		if (target_name && target_name.startsWith('http')) return;
 
 		if (inCanvas){
 			// 如果是图像节点，返回
@@ -458,6 +458,9 @@ export default class AttachFlowPlugin extends Plugin {
 		}
 		else{
 			target_name = target.parentElement?.getAttribute("src") as string;
+			let pdf_match = target_name.match(/.*\.pdf/);
+			target_name = pdf_match ? pdf_match[0] : target_name;
+			if (curTargetType=='img' && pdf_match) return;
 		}
 
 		if (inPreview) {
