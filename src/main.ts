@@ -458,6 +458,8 @@ export default class AttachFlowPlugin extends Plugin {
 		}
 		else{
 			target_name = target.parentElement?.getAttribute("src") as string;
+			// 删除 target_name 可能前缀的多个 '../'，支持链接路径为当前笔记的相对路径
+			target_name = target_name.replace(/^(\.\.\/)+/g, '');
 			let pdf_match = target_name.match(/.*\.pdf/);
 			target_name = pdf_match ? pdf_match[0] : target_name;
 			if (curTargetType=='img' && pdf_match) return;
