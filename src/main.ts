@@ -12,18 +12,21 @@ import {
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
 
-interface MatchedLinkInLine{
-	old_link:string, 
-	new_link: string, 
-	from_ch: number, 
+interface MatchedLinkInLine {
+	old_link: string,
+	new_link: string,
+	from_ch: number,
 	to_ch: number
 }
 
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
+	AllowZoom: boolean;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
+
+		this.AllowZoom = true;
 
 		this.addSettingTab(new AttachFlowSettingsTab(this.app, this));
 
@@ -53,11 +56,116 @@ export default class AttachFlowPlugin extends Plugin {
 		// register all commands in addCommand function
 		addCommand(this);
 
+		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+			const target = evt.target as HTMLElement;
+			if (!this.AllowZoom) {
+				evt.preventDefault();
+				return;
+			}
+			if (target.tagName === 'IMG') {
+				// 计算图像的左边界的位置及中心的位置
+				const rect = target.getBoundingClientRect();
+				const imageCenter = rect.left + rect.width / 2;			
+				if (evt.clientX > imageCenter && !document.getElementById('zoomedImage')) {
+					// evt.preventDefault();
+					const mask = document.createElement('div');
+					mask.id = 'mask';
+					mask.style.position = 'fixed';
+					mask.style.top = '0';
+					mask.style.left = '0';
+					mask.style.width = '100%';
+					mask.style.height = '100%';
+					mask.style.background = 'rgba(0, 0, 0, 0.5)';  // 半透明黑色背景
+					mask.style.zIndex = '9998';  // 使遮罩位于其他内容之下，但在大图之上
+					document.body.appendChild(mask);
+
+					const zoomedImage = document.createElement('img');
+					zoomedImage.id = 'zoomedImage';
+					zoomedImage.src = (evt.target as HTMLImageElement).src;
+					const realImage = new Image();
+					realImage.onload = function () {
+						zoomedImage.style.width = `${realImage.naturalWidth}px`;
+						zoomedImage.style.height = `${realImage.naturalHeight}px`;
+					}
+					realImage.src = (evt.target as HTMLImageElement).src;
+					zoomedImage.style.position = 'fixed';
+					zoomedImage.style.zIndex = '9999';
+					zoomedImage.style.top = '50%';
+					zoomedImage.style.left = '50%';
+					zoomedImage.style.transform = 'translate(-50%, -50%)';
+					document.body.appendChild(zoomedImage);
+					const originalWidth = zoomedImage.offsetWidth;
+					const originalHeight = zoomedImage.offsetHeight;
+
+					const scaleDiv = document.createElement('div');
+					scaleDiv.id = 'scaleDiv';
+					scaleDiv.style.position = 'fixed';
+					scaleDiv.style.zIndex = '10000';  // 确保它在 zoomedImage 的上方
+					scaleDiv.style.bottom = '0';
+					scaleDiv.style.left = '50%';
+					scaleDiv.style.transform = 'translateX(-50%)';
+					scaleDiv.style.color = '#fff';
+					scaleDiv.style.fontSize = '20px';
+					scaleDiv.style.background = 'rgba(0, 0, 0, 0.5)';  // 半透明背景使其在各种图像上都清晰可见
+					scaleDiv.style.padding = '5px';
+					scaleDiv.innerText = '100%';  // 初始化为 100%
+					document.body.appendChild(scaleDiv);
+
+					zoomedImage.addEventListener('wheel', function (e) {
+						e.preventDefault();
+						// 计算缩放比例，这里我们设定为每次滚动时放大或缩小5%
+						const scale = e.deltaY > 0 ? 0.95 : 1.05;
+						// 获取当前的宽度和高度
+						const width = zoomedImage.offsetWidth;
+						const height = zoomedImage.offsetHeight;
+						// 计算新的宽度和高度
+						const newWidth = width * scale;
+						const newHeight = height * scale;
+						// 设置新的宽度和高度
+						zoomedImage.style.width = `${newWidth}px`;
+						zoomedImage.style.height = `${newHeight}px`;
+
+						// 更新缩放百分比的显示
+						const scalePercent = (newWidth / originalWidth) * 100;
+						scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
+					});
+
+					zoomedImage.addEventListener('contextmenu', function (e) {
+						e.preventDefault();  // 阻止右键菜单显示
+
+						// 恢复原来的尺寸
+						zoomedImage.style.width = `${originalWidth}px`;
+						zoomedImage.style.height = `${originalHeight}px`;
+						scaleDiv.innerText = `100%`;
+					});
+				}
+			} else {
+				this.removeZoomedImage();
+			}
+		});
+
+		this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
+			if (evt.key === 'Escape') {
+				this.removeZoomedImage();
+			}
+		});
+
 		setDebug(this.settings.debug);
 	}
 
 	onunload() {
 		console.log("AttachFlow plugin unloaded...");
+	}
+
+	removeZoomedImage() {
+		if (document.getElementById('zoomedImage')) {
+			const zoomedImage = document.getElementById('zoomedImage');
+			if (zoomedImage) document.body.removeChild(zoomedImage);
+			const scaleDiv = document.getElementById('scaleDiv');
+			if (scaleDiv) document.body.removeChild(scaleDiv);
+			const mask = document.getElementById('mask');
+			if (mask) document.body.removeChild(mask);
+		}
 	}
 
 	registerDocument(document: Document) {
@@ -69,7 +177,7 @@ export default class AttachFlowPlugin extends Plugin {
 				this.onClick.bind(this)
 			)
 		);
-		
+
 		// 以下三个事件是为了实现拖拽改变图片大小的功能，修改自 https://github.com/xRyul/obsidian-image-converter
 		// 附上其 MIT License
 		// MIT License
@@ -98,7 +206,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mousedown",
 				"img, video",
 				(event: MouseEvent) => {
-					if(!this.settings.dragResize) return;
+					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
@@ -108,6 +216,8 @@ export default class AttachFlowPlugin extends Plugin {
 						event.preventDefault();
 					}
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
+					if (img.id == 'zoomedImage') return;
+
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 					//  @ts-expect-error, not typed
 					const editorView = editor.cm as EditorView;
@@ -119,10 +229,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
 					print('InTable', inTable)
 					print('Target Element', img)
-					if (isExcalidraw){
-						print('Excalidraw file!');
-						// return;
-					}
+
 					// print("img.parent", img.parentElement?img.parentElement:'NULL')
 
 					const rect = img.getBoundingClientRect();
@@ -137,8 +244,9 @@ export default class AttachFlowPlugin extends Plugin {
 						let lastUpdateX = startX;
 						let lastUpdateY = startY;
 						const updateThreshold = 5; // The mouse must move at least 5 pixels before an update
-						
+
 						const onMouseMove = (event: MouseEvent) => {
+							this.AllowZoom = false;
 							const currentX = event.clientX;
 							let newWidth = startWidth + (currentX - startX);
 							const aspectRatio = startWidth / startHeight;
@@ -165,7 +273,7 @@ export default class AttachFlowPlugin extends Plugin {
 								img.style.borderColor = 'blue';
 								img.style.boxSizing = 'border-box';
 								// Check if img.parentElement is not null before trying to access its clientWidth property
-								if (img.parentElement){
+								if (img.parentElement) {
 									const containerWidth = img.parentElement.clientWidth;
 									const newWidthPercentage = (newWidth / containerWidth) * 100;
 									img.style.width = `${newWidthPercentage}%`;
@@ -178,28 +286,28 @@ export default class AttachFlowPlugin extends Plugin {
 								if (activeView) {
 									print("update new Width", newWidth);
 									let imageName = img.getAttribute('src');
-									if (imageName?.startsWith('http')){
+									if (imageName?.startsWith('http')) {
 										updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
 									}
-									else if(isExcalidraw){
+									else if (isExcalidraw) {
 										let target_name = img.getAttribute('filesource') as string;
 										let draw_base_name = target_name
-										if(draw_base_name.includes('/')){
+										if (draw_base_name.includes('/')) {
 											let temp_arr = draw_base_name.split('/');
-											draw_base_name = temp_arr[temp_arr.length-1]
-										}else if(draw_base_name.includes('\\')){
+											draw_base_name = temp_arr[temp_arr.length - 1]
+										} else if (draw_base_name.includes('\\')) {
 											let temp_arr = draw_base_name.split('\\');
-											draw_base_name = temp_arr[temp_arr.length-1]
+											draw_base_name = temp_arr[temp_arr.length - 1]
 										}
 										draw_base_name = draw_base_name.endsWith('.md') ?
-											draw_base_name.substring(0, draw_base_name.length-3) :
+											draw_base_name.substring(0, draw_base_name.length - 3) :
 											draw_base_name;
 										print(target_name)
 										print('excalidraw file:', draw_base_name)
 										img.style.maxWidth = 'none';
 										updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
 									}
-									else{
+									else {
 										imageName = img.parentElement?.getAttribute('src') as string;
 										updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
 									}
@@ -211,7 +319,12 @@ export default class AttachFlowPlugin extends Plugin {
 							}
 						}
 
+						const allowZoomFunc = () => {
+							this.AllowZoom = true;
+						} 
+
 						const onMouseUp = (event: MouseEvent) => {
+							setTimeout(allowZoomFunc, 100);
 							event.preventDefault()
 							img.style.borderStyle = 'none'
 							img.style.outline = 'none';
@@ -231,7 +344,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mouseover",
 				"img, video",
 				(event: MouseEvent) => {
-					if(!this.settings.dragResize) return;
+					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
@@ -241,13 +354,15 @@ export default class AttachFlowPlugin extends Plugin {
 					const rect = img.getBoundingClientRect(); // Cache this
 					const edgeSize = 30; // size of the edge in pixels
 
+					if (img.id == 'zoomedImage') return;
+
 					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
 					// if (isExcalidraw) return;
 
 					// Throttle mousemove events
 					let lastMove = 0;
 					const mouseOverHandler = (event: MouseEvent) => {
-						if(!this.settings.dragResize) return;
+						if (!this.settings.dragResize) return;
 						const now = Date.now();
 						if (now - lastMove < 100) return; // Only execute once every 100ms
 						lastMove = now;
@@ -260,7 +375,11 @@ export default class AttachFlowPlugin extends Plugin {
 							img.style.outline = 'solid';
 							img.style.outlineWidth = '6px';
 							img.style.outlineColor = '#dfb0f283';
-						} else {
+						} 
+						else if (x>rect.width/2){
+							img.style.cursor = 'zoom-in';
+						}
+						else {
 							img.style.cursor = 'default';
 							img.style.outline = 'none';
 						}
@@ -276,7 +395,7 @@ export default class AttachFlowPlugin extends Plugin {
 				"mouseout",
 				"img, video",
 				(event: MouseEvent) => {
-					if(!this.settings.dragResize) return;
+					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
@@ -412,6 +531,7 @@ export default class AttachFlowPlugin extends Plugin {
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
 		const curTargetType = target.localName;
+		if (target.id == 'zoomedImage') return;
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
 		const inCanvas = currentMd.name.endsWith('.canvas');
@@ -425,14 +545,14 @@ export default class AttachFlowPlugin extends Plugin {
 		// const inTable:boolean = target.parentElement?.parentElement?.getAttribute('class')=='table-cell-wrapper';
 		const inTable: boolean = target.closest('table') != null;
 		const inCallout: boolean = target.closest('.callout') != null;
-		const inPreview:boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
-		const isExcalidraw:boolean = target.classList.contains('excalidraw-embedded-img');
+		const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+		const isExcalidraw: boolean = target.classList.contains('excalidraw-embedded-img');
 
 		let target_name = target.getAttribute("src") as string;
 		// 对于 Callout 和 Table 中的网络图片，没有右键菜单
 		if (target_name && target_name.startsWith('http')) return;
 
-		if (inCanvas){
+		if (inCanvas) {
 			// 如果是图像节点，返回
 			if (target.parentElement?.classList.contains('canvas-node-content')) return;
 			let file_name = target.parentElement?.getAttribute('src');
@@ -441,28 +561,28 @@ export default class AttachFlowPlugin extends Plugin {
 			return;
 		}
 
-		if (isExcalidraw){
+		if (isExcalidraw) {
 			target_name = target.getAttribute('filesource') as string;
 			let file_base_name = target_name
-			if(file_base_name.includes('/')){
+			if (file_base_name.includes('/')) {
 				let temp_arr = file_base_name.split('/');
-				file_base_name = temp_arr[temp_arr.length-1]
-			}else if(file_base_name.includes('\\')){
+				file_base_name = temp_arr[temp_arr.length - 1]
+			} else if (file_base_name.includes('\\')) {
 				let temp_arr = file_base_name.split('\\');
-				file_base_name = temp_arr[temp_arr.length-1]
+				file_base_name = temp_arr[temp_arr.length - 1]
 			}
-			file_base_name = file_base_name.endsWith('.md') ? 
-				file_base_name.substring(0, file_base_name.length-3) : 
+			file_base_name = file_base_name.endsWith('.md') ?
+				file_base_name.substring(0, file_base_name.length - 3) :
 				file_base_name;
 			target_name = file_base_name;
 		}
-		else{
+		else {
 			target_name = target.parentElement?.getAttribute("src") as string;
 			// 删除 target_name 可能前缀的多个 '../'，支持链接路径为当前笔记的相对路径
 			target_name = target_name.replace(/^(\.\.\/)+/g, '');
 			let pdf_match = target_name.match(/.*\.pdf/);
 			target_name = pdf_match ? pdf_match[0] : target_name;
-			if (curTargetType=='img' && pdf_match) return;
+			if (curTargetType == 'img' && pdf_match) return;
 		}
 
 		if (inPreview) {
@@ -471,7 +591,7 @@ export default class AttachFlowPlugin extends Plugin {
 				this.addMenuExtendedPreviewMode(menu, target_name, currentMd);
 			}
 		}
-		else{
+		else {
 			const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 			//  @ts-expect-error, not typed
 			const editorView = editor.cm as EditorView;
@@ -491,7 +611,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 			// ---------- EditorInternalApi.posAtMouse 不是很准确，不知道为什么，行号和ch都不准确 ----------
 			// const editor2 = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor as EditorInternalApi;
-		    // const position = editor2.posAtMouse(event);
+			// const position = editor2.posAtMouse(event);
 			// console.log('InterAPIPos line information: line-content, line-number(1-based), target.ch')
 			// console.log(editor?.getLine(position.line), position.line+1, position.ch)
 			// ---------------------------------------------------------------------------------------
@@ -505,11 +625,11 @@ export default class AttachFlowPlugin extends Plugin {
 		}
 
 		this.registerEscapeButton(menu);
-		
-		if (inTable && !inPreview){
-			menu.showAtPosition({ x: event.pageX, y: event.pageY-163});
+
+		if (inTable && !inPreview) {
+			menu.showAtPosition({ x: event.pageX, y: event.pageY - 163 });
 		}
-		else{
+		else {
 			menu.showAtPosition({ x: event.pageX, y: event.pageY });
 		}
 		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
@@ -526,25 +646,25 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	// print(target_line.text, target_line.number, target_pos - target_line.from);
 
 
-	if (!inCallout && !inTable){
+	if (!inCallout && !inTable) {
 		let matched = matchLineWithInternalLink(target_line.text, imageName, newWidth, inTable);
-		if (matched.length==1){
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from+matched[0].from_ch, 
-					to: target_line.from+matched[0].to_ch, 
-					insert: matched[0].new_link 
-				} 
+		if (matched.length == 1) {
+			editorView.dispatch({
+				changes: {
+					from: target_line.from + matched[0].from_ch,
+					to: target_line.from + matched[0].to_ch,
+					insert: matched[0].new_link
+				}
 			});
 			// editor.replaceRange(matched[0].new_link, 
 			// 	{line:target_line.number-1, ch:matched[0].from_ch}, 
 			// 	{line:target_line.number-1, ch:matched[0].to_ch}
 			// 	);
 		}
-		else if(matched.length==0){
+		else if (matched.length == 0) {
 			// new Notice('Fail to find current image-link, please zoom manually!')
 		}
-		else{
+		else {
 			new Notice('Find multiple same image-link in line, please zoom manually!')
 		}
 		return;
@@ -553,7 +673,7 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	type RegDictionary = {
 		[key: string]: RegExp;
 	};
-	
+
 	let startReg: RegDictionary = {
 		'table': /^\s*\|/,
 		'callout': /^>/,
@@ -566,7 +686,7 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	let start_line_number = target_line.number;
 	let matched_results: MatchedLinkInLine[] = [];
 	let matched_lines: number[] = [];  //1-based
-	for (let i = start_line_number; i <= editor.lineCount(); i++){
+	for (let i = start_line_number; i <= editor.lineCount(); i++) {
 		let line = editorView.state.doc.line(i);
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
@@ -574,7 +694,7 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 		matched_lines.push(...new Array(matched.length).fill(i));
 	}
 
-	for (let i = start_line_number-1; i >= 1; i--){
+	for (let i = start_line_number - 1; i >= 1; i--) {
 		let line = editorView.state.doc.line(i);
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
@@ -586,34 +706,34 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	// print(matched_results)
 	// print(matched_lines)
 
-	if (matched_results.length==1){
+	if (matched_results.length == 1) {
 		let target_line = editorView.state.doc.line(matched_lines[0]);
-		if (mode == 'table'){
+		if (mode == 'table') {
 			let old_text = target_line.text;
 			let new_line_text = old_text.substring(0, matched_results[0].from_ch) +
-						matched_results[0].new_link + 
-						old_text.substring(matched_results[0].to_ch);
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from, 
-					to: target_line.from+old_text.length, 
+				matched_results[0].new_link +
+				old_text.substring(matched_results[0].to_ch);
+			editorView.dispatch({
+				changes: {
+					from: target_line.from,
+					to: target_line.from + old_text.length,
 					insert: new_line_text
-				} 
+				}
 			});
-		}else{
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from+matched_results[0].from_ch, 
-					to: target_line.from+matched_results[0].to_ch, 
-					insert: matched_results[0].new_link 
-				} 
+		} else {
+			editorView.dispatch({
+				changes: {
+					from: target_line.from + matched_results[0].from_ch,
+					to: target_line.from + matched_results[0].to_ch,
+					insert: matched_results[0].new_link
+				}
 			});
 		}
 	}
-	else if(matched_results.length==0){
+	else if (matched_results.length == 0) {
 		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
 	}
-	else{
+	else {
 		new Notice(`Find multiple same image-link in ${mode}, please zoom manually!`)
 	}
 	return;
@@ -629,21 +749,21 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	const link = target.getAttribute('src') as string;
 	const altText = target.getAttribute("alt") as string;
 
-	if (!inCallout && !inTable){
+	if (!inCallout && !inTable) {
 		let matched = matchLineWithExternalLink(target_line.text, link, altText, newWidth, inTable);
-		if (matched.length==1){
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from+matched[0].from_ch, 
-					to: target_line.from+matched[0].to_ch, 
-					insert: matched[0].new_link 
-				} 
+		if (matched.length == 1) {
+			editorView.dispatch({
+				changes: {
+					from: target_line.from + matched[0].from_ch,
+					to: target_line.from + matched[0].to_ch,
+					insert: matched[0].new_link
+				}
 			});
 		}
-		else if(matched.length==0){
+		else if (matched.length == 0) {
 			// new Notice('Fail to find current image-link, please zoom manually!')
 		}
-		else{
+		else {
 			new Notice('Find multiple same image-link in line, please zoom manually!')
 		}
 		return;
@@ -652,7 +772,7 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	type RegDictionary = {
 		[key: string]: RegExp;
 	};
-	
+
 	let startReg: RegDictionary = {
 		'table': /^\s*\|/,
 		'callout': /^>/,
@@ -665,7 +785,7 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	let start_line_number = target_line.number;
 	let matched_results: MatchedLinkInLine[] = [];
 	let matched_lines: number[] = [];  //1-based
-	for (let i = start_line_number; i <= editor.lineCount(); i++){
+	for (let i = start_line_number; i <= editor.lineCount(); i++) {
 		let line = editorView.state.doc.line(i);
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
@@ -673,7 +793,7 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 		matched_lines.push(...new Array(matched.length).fill(i));
 	}
 
-	for (let i = start_line_number-1; i >= 1; i--){
+	for (let i = start_line_number - 1; i >= 1; i--) {
 		let line = editorView.state.doc.line(i);
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithExternalLink(line.text, link, altText, newWidth, inTable);
@@ -684,34 +804,34 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	print(matched_results)
 	print(matched_lines)
 
-	if (matched_results.length==1){
+	if (matched_results.length == 1) {
 		let target_line = editorView.state.doc.line(matched_lines[0]);
-		if (mode == 'table'){
+		if (mode == 'table') {
 			let old_text = target_line.text;
 			let new_line_text = old_text.substring(0, matched_results[0].from_ch) +
-						matched_results[0].new_link + 
-						old_text.substring(matched_results[0].to_ch);
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from, 
-					to: target_line.from+old_text.length, 
+				matched_results[0].new_link +
+				old_text.substring(matched_results[0].to_ch);
+			editorView.dispatch({
+				changes: {
+					from: target_line.from,
+					to: target_line.from + old_text.length,
 					insert: new_line_text
-				} 
+				}
 			});
-		}else{
-			editorView.dispatch({ 
-				changes: { 
-					from: target_line.from+matched_results[0].from_ch, 
-					to: target_line.from+matched_results[0].to_ch, 
-					insert: matched_results[0].new_link 
-				} 
+		} else {
+			editorView.dispatch({
+				changes: {
+					from: target_line.from + matched_results[0].from_ch,
+					to: target_line.from + matched_results[0].to_ch,
+					insert: matched_results[0].new_link
+				}
 			});
 		}
 	}
-	else if(matched_results.length==0){
+	else if (matched_results.length == 0) {
 		new Notice(`Fail to find current image-link in ${mode}, please zoom manually!`)
 	}
-	else{
+	else {
 		new Notice(`Find multiple same image-link in ${mode}, please zoom manually!`)
 	}
 	return;
@@ -719,73 +839,72 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 }
 
 
-function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean): MatchedLinkInLine[]
-{
+function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
-    let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
 	const target_name_mdlink = target_name.replace(/ /g, '%20');
 	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return [];
 
 	let result: MatchedLinkInLine[] = [];
 	// const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
-	while(true){
+	while (true) {
 		let wiki_match = regWikiLink.exec(line_text);
 		if (!wiki_match) break;
 		const matched_link = wiki_match[0];
-		if (matched_link.includes(target_name)){
-			let normal_link = intable ? matched_link.replace(/\\\|/g, '|'): matched_link;
+		if (matched_link.includes(target_name)) {
+			let normal_link = intable ? matched_link.replace(/\\\|/g, '|') : matched_link;
 			console.log(normal_link)
 			let link_match = normal_link.match(/!\[\[(.*?)(\||\]\])/);
-			let link_text = link_match?link_match[1]:'';
+			let link_text = link_match ? link_match[1] : '';
 
 			let alt_match = matched_link.match(/!\[\[.*?(\|(.*?))\]\]/);
 			let alt_text = alt_match ? alt_match[1] : '';
 			let alt_text_list = alt_text.split('|');
 			let alt_text_wo_size = '';
 			let new_alt_text = ''
-			for (let alt of alt_text_list){
-				if (!/^\d+$/.test(alt) && !/^\s*$/.test(alt)){
+			for (let alt of alt_text_list) {
+				if (!/^\d+$/.test(alt) && !/^\s*$/.test(alt)) {
 					alt_text_wo_size = alt_text_wo_size + '|' + alt;
 				}
 			}
-			new_alt_text = new_width!=0?`${alt_text_wo_size}|${new_width}`:alt_text_wo_size;
-			new_alt_text = intable ? new_alt_text.replace(/\|/g, '\\|'): new_alt_text;
-			let newWikiLink = link_match? `![[${link_text}${new_alt_text}]]`:`![[${target_name}${new_alt_text}]]`;
+			new_alt_text = new_width != 0 ? `${alt_text_wo_size}|${new_width}` : alt_text_wo_size;
+			new_alt_text = intable ? new_alt_text.replace(/\|/g, '\\|') : new_alt_text;
+			let newWikiLink = link_match ? `![[${link_text}${new_alt_text}]]` : `![[${target_name}${new_alt_text}]]`;
 
 			result.push({
-				old_link:matched_link,
-				new_link:newWikiLink, 
-				from_ch:wiki_match.index, 
-				to_ch:wiki_match.index+matched_link.length
+				old_link: matched_link,
+				new_link: newWikiLink,
+				from_ch: wiki_match.index,
+				to_ch: wiki_match.index + matched_link.length
 			});
 		}
 	}
 
-	while(true){
+	while (true) {
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
 		const matched_link = match[0];
-		if (matched_link.includes(target_name_mdlink)){
+		if (matched_link.includes(target_name_mdlink)) {
 			// 找到 matched_link 中的 altText
 			let alt_text_match = matched_link.match(/\[.*?\]/g) as string[];
-			let alt_text = alt_text_match[0].substring(1, alt_text_match[0].length-1);
+			let alt_text = alt_text_match[0].substring(1, alt_text_match[0].length - 1);
 			let pure_alt = alt_text.replace(/\|\d+(\|\d+)?$/g, '');
-			if (intable){
+			if (intable) {
 				pure_alt = alt_text.replace(/\\\|\d+(\|\d+)?$/g, '')
 			}
-			let link_text = matched_link.substring(alt_text_match[0].length+2, matched_link.length-1)
-			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${link_text})`:`![${pure_alt}|${new_width}](${link_text})`;
-			if (/^\d*$/.test(alt_text)){
+			let link_text = matched_link.substring(alt_text_match[0].length + 2, matched_link.length - 1)
+			let newMDLink = intable ? `![${pure_alt}\\|${new_width}](${link_text})` : `![${pure_alt}|${new_width}](${link_text})`;
+			if (/^\d*$/.test(alt_text)) {
 				newMDLink = `![${new_width}](${link_text})`;
 			}
 			// let newLineText = line_text.substring(0, match.index) + 
 			// 					newMDLink + 
 			// 					line_text.substring(match.index+matched_link.length);
 			result.push({
-				old_link:matched_link,
-				new_link:newMDLink, 
-				from_ch:match.index, 
-				to_ch:match.index+matched_link.length
+				old_link: matched_link,
+				new_link: newMDLink,
+				from_ch: match.index,
+				to_ch: match.index + matched_link.length
 			});
 		}
 	}
@@ -795,30 +914,29 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 }
 
 
-function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[]
-{
+function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let result: MatchedLinkInLine[] = []
 	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
 	if (!line_text.includes(link) || !line_text.includes(alt_text)) return [];
-	let newExternalLink = intable ? 
-		`![${alt_text}\\|${new_width}](${link})` : 
+	let newExternalLink = intable ?
+		`![${alt_text}\\|${new_width}](${link})` :
 		`![${alt_text}|${new_width}](${link})`;
-	if (/^\d*$/.test(alt_text) || /^\s*$/.test(alt_text)){
+	if (/^\d*$/.test(alt_text) || /^\s*$/.test(alt_text)) {
 		newExternalLink = `![${new_width}](${link})`;
 	}
-	while(true){
+	while (true) {
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
 		let matched_link = match[0];
-		if (matched_link.includes(link) && matched_link.includes(alt_text)){
+		if (matched_link.includes(link) && matched_link.includes(alt_text)) {
 			// let newLineText = line_text.substring(0, match.index) + 
 			// 					newExternalLink + 
 			// 					line_text.substring(match.index+matched_link.length);
 			result.push({
-				old_link:matched_link, 
-				new_link: newExternalLink, 
-				from_ch:match.index, 
-				to_ch:match.index+matched_link.length
+				old_link: matched_link,
+				new_link: newExternalLink,
+				from_ch: match.index,
+				to_ch: match.index + matched_link.length
 			});
 		}
 	}
