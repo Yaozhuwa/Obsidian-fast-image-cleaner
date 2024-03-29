@@ -11,6 +11,8 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
+import { platform } from "os";
+import { off } from "process";
 
 interface MatchedLinkInLine {
 	old_link: string,
@@ -446,20 +448,7 @@ export default class AttachFlowPlugin extends Plugin {
 	 * @param currentMd
 	 */
 	addMenuExtendedSourceMode = (menu: Menu, FileBaseName: string, currentMd: TFile, target_type: string, target_pos: number, inTable: boolean, inCallout: boolean) => {
-		menu.addItem((item: MenuItem) =>
-			item
-				.setIcon("trash-2")
-				.setTitle("Clear file and associated link")
-				// .setChecked(true)
-				.onClick(async () => {
-					try {
-						// Util.handlerDelFile(FileBaseName, currentMd, this);
-						Util.handlerDelFileNew(FileBaseName, currentMd, this, target_type, target_pos, inTable, inCallout);
-					} catch {
-						new Notice("Error, could not clear the file!");
-					}
-				})
-		);
+		this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
 		menu.addItem((item: MenuItem) =>
 			item
 				.setIcon("pencil")
@@ -473,7 +462,21 @@ export default class AttachFlowPlugin extends Plugin {
 					}
 				})
 		)
-		this.addMenuExtendedPreviewMode(menu, FileBaseName, currentMd);
+		
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("trash-2")
+				.setTitle("Clear file and associated link")
+				// .setSection("attach-flow")
+				.onClick(async () => {
+					try {
+						// Util.handlerDelFile(FileBaseName, currentMd, this);
+						Util.handlerDelFileNew(FileBaseName, currentMd, this, target_type, target_pos, inTable, inCallout);
+					} catch {
+						new Notice("Error, could not clear the file!");
+					}
+				})
+		);
 	};
 
 
@@ -488,20 +491,22 @@ export default class AttachFlowPlugin extends Plugin {
 		const file = Util.getFileByBaseName(currentMd, FileBaseName) as TFile;
 		// const basePath = (file.vault.adapter as any).basePath;
 		// const relativeFilePath = file.path;
+		if (process.platform != 'linux'){
+			menu.addItem((item: MenuItem) =>
+				item
+					.setIcon("copy")
+					.setTitle("Copy file to clipboard")
+					// .setChecked(true)
+					.onClick(async () => {
+						try {
+							Util.handlerCopyFile(FileBaseName, currentMd, this);
+						} catch {
+							new Notice("Error, could not copy the file!");
+						}
+					})
+			);
+		}
 
-		menu.addItem((item: MenuItem) =>
-			item
-				.setIcon("copy")
-				.setTitle("Copy file to clipboard")
-				// .setChecked(true)
-				.onClick(async () => {
-					try {
-						Util.handlerCopyFile(FileBaseName, currentMd, this);
-					} catch {
-						new Notice("Error, could not copy the file!");
-					}
-				})
-		);
 		menu.addItem((item: MenuItem) => item
 			.setIcon("arrow-up-right")
 			.setTitle("Open in default app")
@@ -526,7 +531,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 
 	/**
-	 * 鼠标点击事件
+	 * 鼠标右键菜单事件
 	 */
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
@@ -626,8 +631,12 @@ export default class AttachFlowPlugin extends Plugin {
 
 		this.registerEscapeButton(menu);
 
+		let offset = -163;
+		let linux_offset = -138;
+		offset = process.platform == 'linux'? linux_offset:offset;
+
 		if (inTable && !inPreview) {
-			menu.showAtPosition({ x: event.pageX, y: event.pageY - 163 });
+			menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
 		}
 		else {
 			menu.showAtPosition({ x: event.pageX, y: event.pageY });
