@@ -67,11 +67,11 @@ export default class AttachFlowPlugin extends Plugin {
 			if (target.tagName === 'IMG') {
 				// 计算图像的左边界的位置及中心的位置
 				const rect = target.getBoundingClientRect();
-				const imageCenter = rect.left + rect.width / 2;			
-				if (evt.clientX > imageCenter && !document.getElementById('zoomedImage')) {
+				const imageCenter = rect.left + rect.width / 2;
+				if (evt.clientX > imageCenter && !document.getElementById('af-zoomed-image')) {
 					// evt.preventDefault();
 					const mask = document.createElement('div');
-					mask.id = 'mask';
+					mask.id = 'af-mask';
 					mask.style.position = 'fixed';
 					mask.style.top = '0';
 					mask.style.left = '0';
@@ -82,7 +82,7 @@ export default class AttachFlowPlugin extends Plugin {
 					document.body.appendChild(mask);
 
 					const zoomedImage = document.createElement('img');
-					zoomedImage.id = 'zoomedImage';
+					zoomedImage.id = 'af-zoomed-image';
 					zoomedImage.src = (evt.target as HTMLImageElement).src;
 					const realImage = new Image();
 					realImage.onload = function () {
@@ -100,7 +100,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const originalHeight = zoomedImage.offsetHeight;
 
 					const scaleDiv = document.createElement('div');
-					scaleDiv.id = 'scaleDiv';
+					scaleDiv.id = 'af-scale-div';
 					scaleDiv.style.position = 'fixed';
 					scaleDiv.style.zIndex = '10000';  // 确保它在 zoomedImage 的上方
 					scaleDiv.style.bottom = '0';
@@ -160,12 +160,12 @@ export default class AttachFlowPlugin extends Plugin {
 	}
 
 	removeZoomedImage() {
-		if (document.getElementById('zoomedImage')) {
-			const zoomedImage = document.getElementById('zoomedImage');
+		if (document.getElementById('af-zoomed-image')) {
+			const zoomedImage = document.getElementById('af-zoomed-image');
 			if (zoomedImage) document.body.removeChild(zoomedImage);
-			const scaleDiv = document.getElementById('scaleDiv');
+			const scaleDiv = document.getElementById('af-scale-div');
 			if (scaleDiv) document.body.removeChild(scaleDiv);
-			const mask = document.getElementById('mask');
+			const mask = document.getElementById('af-mask');
 			if (mask) document.body.removeChild(mask);
 		}
 	}
@@ -218,7 +218,7 @@ export default class AttachFlowPlugin extends Plugin {
 						event.preventDefault();
 					}
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
-					if (img.id == 'zoomedImage') return;
+					if (img.id == 'af-zoomed-image') return;
 
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 					//  @ts-expect-error, not typed
@@ -323,7 +323,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 						const allowZoomFunc = () => {
 							this.AllowZoom = true;
-						} 
+						}
 
 						const onMouseUp = (event: MouseEvent) => {
 							setTimeout(allowZoomFunc, 100);
@@ -356,7 +356,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const rect = img.getBoundingClientRect(); // Cache this
 					const edgeSize = 30; // size of the edge in pixels
 
-					if (img.id == 'zoomedImage') return;
+					if (img.id == 'af-zoomed-image') return;
 
 					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
 					// if (isExcalidraw) return;
@@ -377,8 +377,8 @@ export default class AttachFlowPlugin extends Plugin {
 							img.style.outline = 'solid';
 							img.style.outlineWidth = '6px';
 							img.style.outlineColor = '#dfb0f283';
-						} 
-						else if (x>rect.width/2){
+						}
+						else if (x > rect.width / 2) {
 							img.style.cursor = 'zoom-in';
 						}
 						else {
@@ -462,7 +462,7 @@ export default class AttachFlowPlugin extends Plugin {
 					}
 				})
 		)
-		
+
 		menu.addItem((item: MenuItem) =>
 			item
 				.setIcon("trash-2")
@@ -491,7 +491,7 @@ export default class AttachFlowPlugin extends Plugin {
 		const file = Util.getFileByBaseName(currentMd, FileBaseName) as TFile;
 		// const basePath = (file.vault.adapter as any).basePath;
 		// const relativeFilePath = file.path;
-		if (process.platform != 'linux'){
+		if (process.platform != 'linux') {
 			menu.addItem((item: MenuItem) =>
 				item
 					.setIcon("copy")
@@ -536,7 +536,7 @@ export default class AttachFlowPlugin extends Plugin {
 	onClick(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
 		const curTargetType = target.localName;
-		if (target.id == 'zoomedImage') return;
+		if (target.id == 'af-zoomed-image') return;
 
 		const currentMd = app.workspace.getActiveFile() as TFile;
 		const inCanvas = currentMd.name.endsWith('.canvas');
@@ -633,7 +633,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 		let offset = -163;
 		let linux_offset = -138;
-		offset = process.platform == 'linux'? linux_offset:offset;
+		offset = process.platform == 'linux' ? linux_offset : offset;
 
 		if (inTable && !inPreview) {
 			menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
@@ -690,6 +690,7 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 	let mode = inTable ? 'table' : 'callout';
 	print('mode', mode)
+	// print("imageName", imageName)
 
 	const start_reg = startReg[mode];
 	let start_line_number = target_line.number;
@@ -697,6 +698,9 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	let matched_lines: number[] = [];  //1-based
 	for (let i = start_line_number; i <= editor.lineCount(); i++) {
 		let line = editorView.state.doc.line(i);
+		// console.log('line.text', line.text)
+		// console.log('start_reg', start_reg)
+		// console.log('start_reg.test(line.text)', start_reg.test(line.text))
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
 		matched_results.push(...matched);
@@ -854,15 +858,16 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 	const target_name_mdlink = target_name.replace(/ /g, '%20');
 	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return [];
 
+	// print(line_text)
 	let result: MatchedLinkInLine[] = [];
 	// const newWikiLink = intable ? `![[${target_name}\\|${new_width}]]`:`![[${target_name}|${new_width}]]`;
 	while (true) {
 		let wiki_match = regWikiLink.exec(line_text);
 		if (!wiki_match) break;
 		const matched_link = wiki_match[0];
+		// print('matched_link:', matched_link)
 		if (matched_link.includes(target_name)) {
 			let normal_link = intable ? matched_link.replace(/\\\|/g, '|') : matched_link;
-			console.log(normal_link)
 			let link_match = normal_link.match(/!\[\[(.*?)(\||\]\])/);
 			let link_text = link_match ? link_match[1] : '';
 
