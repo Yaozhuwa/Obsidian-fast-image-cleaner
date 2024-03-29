@@ -1,6 +1,6 @@
 {
 	"name": "attachment-flow-plugin",
-	"version": "0.2.5",
+	"version": "0.3.0",
 	"description": "This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive right-click menu, you can efficiently handle resources in both LIVE and READ modes.",
 	"main": "main.js",
 	"scripts": {
