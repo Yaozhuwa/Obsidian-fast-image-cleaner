@@ -23,12 +23,11 @@ interface MatchedLinkInLine {
 
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
-	AllowZoom: boolean;
+	edgeSize: number;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
-
-		this.AllowZoom = true;
+		this.edgeSize = 20;
 
 		this.addSettingTab(new AttachFlowSettingsTab(this.app, this));
 
@@ -59,11 +58,8 @@ export default class AttachFlowPlugin extends Plugin {
 		addCommand(this);
 
 		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+			if (!this.settings.clickView) return;
 			const target = evt.target as HTMLElement;
-			if (!this.AllowZoom) {
-				evt.preventDefault();
-				return;
-			}
 			if (target.tagName === 'IMG') {
 				// 计算图像的左边界的位置及中心的位置
 				const rect = target.getBoundingClientRect();
@@ -234,10 +230,16 @@ export default class AttachFlowPlugin extends Plugin {
 
 					// print("img.parent", img.parentElement?img.parentElement:'NULL')
 
+					// 定义事件处理函数
+					let preventClickEvent = function(event: MouseEvent) {
+						event.preventDefault();
+						event.stopPropagation();
+					};
+
 					const rect = img.getBoundingClientRect();
 					const x = event.clientX - rect.left;
 					const y = event.clientY - rect.top;
-					const edgeSize = 30; // size of the edge in pixels
+					const edgeSize = this.edgeSize; // size of the edge in pixels
 					if (x < edgeSize || y < edgeSize || x > rect.width - edgeSize || y > rect.height - edgeSize) {
 						const startX = event.clientX;
 						const startY = event.clientY;
@@ -248,7 +250,8 @@ export default class AttachFlowPlugin extends Plugin {
 						const updateThreshold = 5; // The mouse must move at least 5 pixels before an update
 
 						const onMouseMove = (event: MouseEvent) => {
-							this.AllowZoom = false;
+							// this.AllowZoom = false;
+							img.addEventListener('click', preventClickEvent);
 							const currentX = event.clientX;
 							let newWidth = startWidth + (currentX - startX);
 							const aspectRatio = startWidth / startHeight;
@@ -321,12 +324,12 @@ export default class AttachFlowPlugin extends Plugin {
 							}
 						}
 
-						const allowZoomFunc = () => {
-							this.AllowZoom = true;
+						const allowClickEvent = () => {
+							img.removeEventListener('click', preventClickEvent);
 						}
 
 						const onMouseUp = (event: MouseEvent) => {
-							setTimeout(allowZoomFunc, 100);
+							setTimeout(allowClickEvent, 100);
 							event.preventDefault()
 							img.style.borderStyle = 'none'
 							img.style.outline = 'none';
@@ -346,7 +349,6 @@ export default class AttachFlowPlugin extends Plugin {
 				"mouseover",
 				"img, video",
 				(event: MouseEvent) => {
-					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
@@ -354,12 +356,11 @@ export default class AttachFlowPlugin extends Plugin {
 
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
-					const edgeSize = 30; // size of the edge in pixels
+					const edgeSize = this.edgeSize; // size of the edge in pixels
 
 					if (img.id == 'af-zoomed-image') return;
 
 					const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
-					// if (isExcalidraw) return;
 
 					// Throttle mousemove events
 					let lastMove = 0;
@@ -373,12 +374,14 @@ export default class AttachFlowPlugin extends Plugin {
 						const y = event.clientY - rect.top;
 
 						if ((x >= rect.width - edgeSize || x <= edgeSize) || (y >= rect.height - edgeSize || y <= edgeSize)) {
-							img.style.cursor = 'nwse-resize';
-							img.style.outline = 'solid';
-							img.style.outlineWidth = '6px';
-							img.style.outlineColor = '#dfb0f283';
+							if (this.settings.dragResize){
+								img.style.cursor = 'nwse-resize';
+								img.style.outline = 'solid';
+								img.style.outlineWidth = '6px';
+								img.style.outlineColor = '#dfb0f283';
+							}
 						}
-						else if (x > rect.width / 2) {
+						else if (x > rect.width / 2 && this.settings.clickView) {
 							img.style.cursor = 'zoom-in';
 						}
 						else {
@@ -958,3 +961,4 @@ function matchLineWithExternalLink(line_text: string, link: string, alt_text: st
 	print("MatchedInfo:", result);
 	return result;
 }
+

@@ -8,13 +8,15 @@ export interface AttachFlowSettings {
     deleteOption: string;
     logsModal: boolean;
     dragResize: boolean;
+    clickView: boolean;
     debug: boolean;
 }
 
 export const DEFAULT_SETTINGS: AttachFlowSettings = {
     deleteOption: '.trash',
     logsModal: true,
-    dragResize: false,
+    dragResize: true,
+    clickView: false,
     debug: false,
 };
 
@@ -50,26 +52,37 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-			.setName("Drag To Resize Images")
-			.setDesc("拖拽调整图片大小")
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.dragResize)
-					.onChange(async (value) => {
-						this.plugin.settings.dragResize = value;
-						await this.plugin.saveSettings();
-					});
-			});
-        
+            .setName("Drag To Resize Images")
+            .setDesc("拖拽调整图片大小")
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.dragResize)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dragResize = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
         new Setting(containerEl)
-			.setName("Print Debug Information")
-			.setDesc("控制台输出调试信息")
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.debug)
-					.onChange(async (value) => {
-						this.plugin.settings.debug = value;
+            .setName("Click to View Images")
+            .setDesc("点击图片右半区域查看大图")
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.clickView)
+                    .onChange(async (value) => {
+                        this.plugin.settings.clickView = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Print Debug Information")
+            .setDesc("控制台输出调试信息")
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.debug)
+                    .onChange(async (value) => {
+                        this.plugin.settings.debug = value;
                         setDebug(value);
-						await this.plugin.saveSettings();
-					});
-			});
+                        await this.plugin.saveSettings();
+                    });
+            });
     }
 }
