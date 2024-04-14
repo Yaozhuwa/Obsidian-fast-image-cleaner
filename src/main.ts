@@ -163,7 +163,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// print("img.parent", img.parentElement?img.parentElement:'NULL')
 
 					// 定义事件处理函数
-					let preventClickEvent = function(event: MouseEvent) {
+					let preventEvent = function(event: MouseEvent) {
 						event.preventDefault();
 						event.stopPropagation();
 					};
@@ -183,13 +183,15 @@ export default class AttachFlowPlugin extends Plugin {
 
 						const onMouseMove = (event: MouseEvent) => {
 							// this.AllowZoom = false;
-							img.addEventListener('click', preventClickEvent);
+							img.addEventListener('click', preventEvent);
+							// img.addEventListener('mouseover', preventEvent);
+							// img.addEventListener('mouseout', preventEvent);
 							const currentX = event.clientX;
 							let newWidth = startWidth + (currentX - startX);
 							const aspectRatio = startWidth / startHeight;
 
 							// Ensure the image doesn't get too small
-							newWidth = Math.max(newWidth, 50);
+							newWidth = Math.max(newWidth, 100);
 
 							let newHeight = newWidth / aspectRatio;
 							// Round the values to the nearest whole number
@@ -256,12 +258,12 @@ export default class AttachFlowPlugin extends Plugin {
 							}
 						}
 
-						const allowClickEvent = () => {
-							img.removeEventListener('click', preventClickEvent);
+						const allowOtherEvent = () => {
+							img.removeEventListener('click', preventEvent);
 						}
 
 						const onMouseUp = (event: MouseEvent) => {
-							setTimeout(allowClickEvent, 100);
+							setTimeout(allowOtherEvent, 100);
 							event.preventDefault()
 							img.style.borderStyle = 'none'
 							img.style.outline = 'none';
@@ -297,6 +299,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// Throttle mousemove events
 					let lastMove = 0;
 					const mouseOverHandler = (event: MouseEvent) => {
+						if (event.buttons != 0) return;
 						if (!this.settings.dragResize) return;
 						const now = Date.now();
 						if (now - lastMove < 100) return; // Only execute once every 100ms
@@ -337,6 +340,7 @@ export default class AttachFlowPlugin extends Plugin {
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
 					if (inPreview) return;
+					if (event.buttons != 0) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					img.style.borderStyle = 'none';
 					img.style.cursor = 'default';
