@@ -1,4 +1,4 @@
-import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView, Platform } from "obsidian";
+import { Menu, MenuItem, Notice, Plugin, TFile, MarkdownView, Platform, Editor } from "obsidian";
 import { addCommand } from "./config/addCommand-config";
 import { AttachFlowSettingsTab } from "./settings";
 import { AttachFlowSettings, DEFAULT_SETTINGS } from "./settings";
@@ -66,6 +66,7 @@ export default class AttachFlowPlugin extends Plugin {
 			const rect = target.getBoundingClientRect();
 			const imageCenter = rect.left + rect.width / 2;
 			if (evt.clientX <= imageCenter || document.getElementById('af-zoomed-image')) return;
+			evt.preventDefault();
 			const mask = createZoomMask();
 			const { zoomedImage, originalWidth, originalHeight } = await createZoomedImage((target as HTMLImageElement).src);
 			const scaleDiv = createZoomScaleDiv(zoomedImage, originalWidth, originalHeight);
@@ -323,10 +324,12 @@ export default class AttachFlowPlugin extends Plugin {
 
 							if (inPreview && this.settings.clickView && x > rect.width / 2) {
 								img.style.cursor = 'zoom-in';
+								img.style.outline = 'none';
 							}
 						}
 						else if (x > rect.width / 2 && this.settings.clickView) {
 							img.style.cursor = 'zoom-in';
+							img.style.outline = 'none';
 						}
 						else if (this.settings.clickView || this.settings.dragResize){
 							img.style.cursor = 'default';
@@ -359,6 +362,75 @@ export default class AttachFlowPlugin extends Plugin {
 				}
 			)
 		);
+
+		// 我实现的外部链接右键菜单
+		// 关键在于 editor.blur()，这样可以让 Obsidian 失去焦点，从而不会触发 Obsidian 的右键菜单
+		this.register(
+			onElement(
+				document,
+				"mousedown",
+				"img",
+				(event: MouseEvent) => {
+					const img = event.target as HTMLImageElement;
+					const inTable: boolean = img.closest('table') != null;
+					if (img.id == 'af-zoomed-image') return;
+					if (!img.src.startsWith('http')) return;
+					if (event.button != 2) return;
+					event.preventDefault();
+					print("http image right click")
+					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor?.blur();
+					img.style.cursor = 'default';
+					const menu = new Menu();
+					menu.addItem((item: MenuItem) =>
+						item
+							.setIcon("copy")
+							.setTitle("Copy image to clipboard")
+							.onClick(async () => {
+								const blob = await loadImageBlob(img.src);
+								navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+							})
+					);
+
+					menu.addItem((item: MenuItem) =>
+						item
+							.setIcon("link")
+							.setTitle("Copy image link")
+							.onClick(async () => {
+								navigator.clipboard.writeText(img.src);
+							})
+					);
+					menu.addItem((item: MenuItem) =>
+						item
+							.setIcon("link")
+							.setTitle("Copy markdown link")
+							.onClick(async () => {
+								navigator.clipboard.writeText(`![](${img.src})`);
+							})
+					);
+					menu.addItem((item: MenuItem) =>
+						item
+							.setIcon("external-link")
+							.setTitle("Open in external browser")
+							.onClick(async () => {
+								window.open(img.src, '_blank');
+							})
+					);
+
+					this.registerEscapeButton(menu);
+
+					let offset = -88;
+					if (inTable) {
+						menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
+					}
+					else{
+						menu.showAtPosition({ x: event.pageX, y: event.pageY });
+					}
+					
+					this.app.workspace.trigger("AttachFlow:contextmenu", menu);
+				}
+			)
+		);
+		
 	}
 
 	async loadSettings() {
