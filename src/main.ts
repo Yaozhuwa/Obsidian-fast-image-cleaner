@@ -55,163 +55,23 @@ export default class AttachFlowPlugin extends Plugin {
 		// register all commands in addCommand function
 		addCommand(this);
 
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+		// 主处理函数
+		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => {
 			if (!this.settings.clickView) return;
 			const target = evt.target as HTMLElement;
-			if (target.tagName === 'IMG') {
-				// 计算图像的左边界的位置及中心的位置
-				const rect = target.getBoundingClientRect();
-				const imageCenter = rect.left + rect.width / 2;
-				if (evt.clientX > imageCenter && !document.getElementById('af-zoomed-image')) {
-					// evt.preventDefault();
-					const mask = document.createElement('div');
-					mask.id = 'af-mask';
-					mask.style.position = 'fixed';
-					mask.style.top = '0';
-					mask.style.left = '0';
-					mask.style.width = '100%';
-					mask.style.height = '100%';
-					mask.style.background = 'rgba(0, 0, 0, 0.5)';  // 半透明黑色背景
-					mask.style.zIndex = '9998';  // 使遮罩位于其他内容之下，但在大图之上
-					document.body.appendChild(mask);
-
-					// 图片显示大小百分比
-					const scaleDiv = document.createElement('div');
-					scaleDiv.id = 'af-scale-div';
-					scaleDiv.style.position = 'fixed';
-					scaleDiv.style.zIndex = '10000';  // 确保它在 zoomedImage 的上方
-					scaleDiv.style.bottom = '0';
-					scaleDiv.style.left = '50%';
-					scaleDiv.style.transform = 'translateX(-50%)';
-					scaleDiv.style.color = '#fff';
-					scaleDiv.style.fontSize = '20px';
-					scaleDiv.style.background = 'rgba(0, 0, 0, 0.5)';  // 半透明背景使其在各种图像上都清晰可见
-					scaleDiv.style.padding = '5px';
-					scaleDiv.innerText = '100%';  // 初始化为 100%
-					document.body.appendChild(scaleDiv);
-
-					const zoomedImage = document.createElement('img');
-					zoomedImage.id = 'af-zoomed-image';
-					zoomedImage.src = (evt.target as HTMLImageElement).src;
-					const realImage = new Image();
-					realImage.onload = () => {
-						zoomedImage.style.width = `${realImage.naturalWidth}px`;
-						zoomedImage.style.height = `${realImage.naturalHeight}px`;
-					
-						// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
-						let screenRatio = 0.75;   // 屏幕尺寸比例
-						let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-						let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-					
-						if (realImage.naturalWidth > screenWidth || realImage.naturalHeight > screenHeight) {
-							if (realImage.naturalWidth / screenWidth > realImage.naturalHeight / screenHeight) {
-								zoomedImage.style.width = `${screenWidth * screenRatio}px`;
-								zoomedImage.style.height = 'auto';
-								let scalePercent = screenWidth * screenRatio / realImage.naturalWidth * 100;
-								scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
-							} else {
-								zoomedImage.style.height = `${screenHeight * screenRatio}px`;
-								zoomedImage.style.width = 'auto';
-								let scalePercent = screenHeight * screenRatio / realImage.naturalHeight * 100;
-								scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
-							}
-						}
-					}
-					realImage.src = (evt.target as HTMLImageElement).src;
-					zoomedImage.style.position = 'fixed';
-					zoomedImage.style.zIndex = '9999';
-					zoomedImage.style.top = '50%';
-					zoomedImage.style.left = '50%';
-					zoomedImage.style.transform = 'translate(-50%, -50%)';
-					document.body.appendChild(zoomedImage);
-					const originalWidth = zoomedImage.offsetWidth;
-					const originalHeight = zoomedImage.offsetHeight;
-
-					zoomedImage.addEventListener('wheel', function (e) {
-						e.preventDefault();
-					
-						// 获取鼠标的位置
-						const mouseX = e.clientX;
-						const mouseY = e.clientY;
-					
-						// 计算缩放的中心点（相对于元素的位置）
-						const centerX = mouseX - zoomedImage.offsetLeft;
-						const centerY = mouseY - zoomedImage.offsetTop;
-					
-						// 计算缩放比例，这里我们设定为每次滚动时放大或缩小5%
-						const scale = e.deltaY > 0 ? 0.95 : 1.05;
-					
-						// 获取当前的宽度和高度
-						const width = zoomedImage.offsetWidth;
-						const height = zoomedImage.offsetHeight;
-					
-						// 计算新的宽度和高度
-						const newWidth = width * scale;
-						const newHeight = height * scale;
-					
-						// 根据缩放的中心点调整元素的位置
-						const newLeft = mouseX - centerX * scale;
-						const newTop = mouseY - centerY * scale;
-					
-						// 设置新的宽度和高度
-						zoomedImage.style.width = `${newWidth}px`;
-						zoomedImage.style.height = `${newHeight}px`;
-					
-						// 设置新的位置
-						zoomedImage.style.left = `${newLeft}px`;
-						zoomedImage.style.top = `${newTop}px`;
-					
-						// 更新缩放百分比的显示
-						const scalePercent = (newWidth / originalWidth) * 100;
-						scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
-					});
-
-					zoomedImage.addEventListener('contextmenu', function (e) {
-						e.preventDefault();  // 阻止右键菜单显示
-
-						// 恢复原来的尺寸
-						zoomedImage.style.width = `${originalWidth}px`;
-						zoomedImage.style.height = `${originalHeight}px`;
-						scaleDiv.innerText = `100%`;
-					});
-
-					zoomedImage.addEventListener('mousedown', function (evt) {
-						// 阻止浏览器默认的拖动事件
-						evt.preventDefault();
-					
-						// 记录点击位置
-						let clickX = evt.clientX;
-						let clickY = evt.clientY;
-					
-						// 更新元素位置的回调函数
-						const updatePosition = (moveEvt: MouseEvent) => {
-							// 计算鼠标移动距离
-							let moveX = moveEvt.clientX - clickX;
-							let moveY = moveEvt.clientY - clickY;
-					
-							// 定位图片位置
-							zoomedImage.style.left = `${zoomedImage.offsetLeft + moveX}px`;
-							zoomedImage.style.top = `${zoomedImage.offsetTop + moveY}px`;
-					
-							// 更新点击位置
-							clickX = moveEvt.clientX;
-							clickY = moveEvt.clientY;
-						}
-					
-						// 鼠标移动事件
-						document.addEventListener('mousemove', updatePosition);
-					
-						// 鼠标松开事件
-						document.addEventListener('mouseup', function listener() {
-							// 移除鼠标移动和鼠标松开的监听器
-							document.removeEventListener('mousemove', updatePosition);
-							document.removeEventListener('mouseup', listener);
-						}, { once: true });
-					});
-				}
-			} else {
+			if (target.tagName !== 'IMG') {
 				this.removeZoomedImage();
+				return;
 			}
+			const rect = target.getBoundingClientRect();
+			const imageCenter = rect.left + rect.width / 2;
+			if (evt.clientX <= imageCenter || document.getElementById('af-zoomed-image')) return;
+			const mask = createZoomMask();
+			const { zoomedImage, originalWidth, originalHeight } = await createZoomedImage((target as HTMLImageElement).src);
+			const scaleDiv = createZoomScaleDiv(zoomedImage, originalWidth, originalHeight);
+			zoomedImage.addEventListener('wheel', (e) => handleZoomMouseWheel(e, zoomedImage, originalWidth, originalHeight, scaleDiv));
+			zoomedImage.addEventListener('contextmenu', (e) => handleZoomContextMenu(e, zoomedImage, originalWidth, originalHeight, scaleDiv));
+			zoomedImage.addEventListener('mousedown', (e) => handleZoomDragStart(e, zoomedImage));
 		});
 
 		this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
@@ -1034,3 +894,151 @@ function matchLineWithExternalLink(line_text: string, link: string, alt_text: st
 	return result;
 }
 
+
+
+// 创建遮罩元素
+function createZoomMask(): HTMLDivElement {
+    const mask = document.createElement('div');
+    mask.id = 'af-mask';
+    mask.style.position = 'fixed';
+    mask.style.top = '0';
+    mask.style.left = '0';
+    mask.style.width = '100%';
+    mask.style.height = '100%';
+    mask.style.background = 'rgba(0, 0, 0, 0.5)';
+    mask.style.zIndex = '9998';
+    document.body.appendChild(mask);
+    return mask;
+}
+
+// 创建放大的图像元素
+async function createZoomedImage(src: string): Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}> {
+    const zoomedImage = document.createElement('img');
+    zoomedImage.id = 'af-zoomed-image';
+    zoomedImage.src = src;
+    zoomedImage.style.position = 'fixed';
+    zoomedImage.style.zIndex = '9999';
+    zoomedImage.style.top = '50%';
+    zoomedImage.style.left = '50%';
+    zoomedImage.style.transform = 'translate(-50%, -50%)';
+    document.body.appendChild(zoomedImage);
+
+    const loaded = new Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}>((resolve) => {
+        zoomedImage.onload = () => {
+			let originalWidth = zoomedImage.width;
+			let originalHeight = zoomedImage.height;
+
+			// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
+			let screenRatio = 0.75;   // 屏幕尺寸比例
+			let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+			let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+
+            // Adjust initial size of the image if it exceeds screen size
+            if (originalWidth > screenWidth || originalHeight > screenHeight) {
+				if (originalWidth / screenWidth > originalHeight / screenHeight) {
+					zoomedImage.style.width = `${screenWidth * screenRatio}px`;
+					zoomedImage.style.height = 'auto';
+				} else {
+					zoomedImage.style.height = `${screenHeight * screenRatio}px`;
+					zoomedImage.style.width = 'auto';
+				}
+            }
+
+            resolve({
+                zoomedImage,
+                originalWidth,
+                originalHeight
+            });
+        };
+    });
+
+    return loaded;
+}
+
+// 创建百分比指示元素
+function createZoomScaleDiv(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number): HTMLDivElement {
+    const scaleDiv = document.createElement('div');
+    scaleDiv.id = 'af-scale-div';
+    scaleDiv.style.position = 'fixed';
+    scaleDiv.style.zIndex = '10000';
+    scaleDiv.style.bottom = '0';
+    scaleDiv.style.left = '50%';
+    scaleDiv.style.transform = 'translateX(-50%)';
+    scaleDiv.style.color = '#fff';
+    scaleDiv.style.fontSize = '20px';
+    scaleDiv.style.background = 'rgba(0, 0, 0, 0.5)';
+    scaleDiv.style.padding = '5px';
+	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+    document.body.appendChild(scaleDiv);
+    return scaleDiv;
+}
+
+function updateZoomScaleDiv(scaleDiv: HTMLDivElement, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number){
+	// 获取当前的宽度和高度
+	const width = zoomedImage.offsetWidth;
+	const height = zoomedImage.offsetHeight;
+	let scalePercent = width / originalWidth * 100;
+	scaleDiv.innerText = `${width}×${height} (${scalePercent.toFixed(1)}%)`;
+}
+
+// 滚轮事件处理器
+function handleZoomMouseWheel(e: WheelEvent, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, scaleDiv: HTMLDivElement) {
+    e.preventDefault();
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    const scale = e.deltaY > 0 ? 0.95 : 1.05;
+    const newWidth = scale * zoomedImage.offsetWidth;
+    const newHeight = scale * zoomedImage.offsetHeight;
+    const newLeft = mouseX - (mouseX - zoomedImage.offsetLeft) * scale;
+    const newTop = mouseY - (mouseY - zoomedImage.offsetTop) * scale;
+    zoomedImage.style.width = `${newWidth}px`;
+    zoomedImage.style.height = `${newHeight}px`;
+    zoomedImage.style.left = `${newLeft}px`;
+    zoomedImage.style.top = `${newTop}px`;
+    updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+}
+
+// 鼠标右键点击事件处理器
+function handleZoomContextMenu(e: MouseEvent,zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, scaleDiv: HTMLDivElement) {
+    e.preventDefault();
+    zoomedImage.style.width = `${originalWidth}px`;
+    zoomedImage.style.height = `${originalHeight}px`;
+    zoomedImage.style.left = `50%`;
+    zoomedImage.style.top = `50%`;
+	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+}
+
+function handleZoomDragStart(e: MouseEvent,zoomedImage: HTMLImageElement) {
+    // 事件处理的代码 ...
+	// 阻止浏览器默认的拖动事件
+	e.preventDefault();
+
+	// 记录点击位置
+	let clickX = e.clientX;
+	let clickY = e.clientY;
+
+	// 更新元素位置的回调函数
+	const updatePosition = (moveEvt: MouseEvent) => {
+		// 计算鼠标移动距离
+		let moveX = moveEvt.clientX - clickX;
+		let moveY = moveEvt.clientY - clickY;
+
+		// 定位图片位置
+		zoomedImage.style.left = `${zoomedImage.offsetLeft + moveX}px`;
+		zoomedImage.style.top = `${zoomedImage.offsetTop + moveY}px`;
+
+		// 更新点击位置
+		clickX = moveEvt.clientX;
+		clickY = moveEvt.clientY;
+	}
+
+	// 鼠标移动事件
+	document.addEventListener('mousemove', updatePosition);
+
+	// 鼠标松开事件
+	document.addEventListener('mouseup', function listener() {
+		// 移除鼠标移动和鼠标松开的监听器
+		document.removeEventListener('mousemove', updatePosition);
+		document.removeEventListener('mouseup', listener);
+	}, { once: true });
+}
