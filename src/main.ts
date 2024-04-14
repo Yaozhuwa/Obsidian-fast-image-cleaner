@@ -291,7 +291,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
-					if (inPreview) return;
+					// if (inPreview) return;
 
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					const rect = img.getBoundingClientRect(); // Cache this
@@ -314,17 +314,21 @@ export default class AttachFlowPlugin extends Plugin {
 						const y = event.clientY - rect.top;
 
 						if ((x >= rect.width - edgeSize || x <= edgeSize) || (y >= rect.height - edgeSize || y <= edgeSize)) {
-							if (this.settings.dragResize){
+							if (this.settings.dragResize && !inPreview){
 								img.style.cursor = 'nwse-resize';
 								img.style.outline = 'solid';
 								img.style.outlineWidth = '6px';
 								img.style.outlineColor = '#dfb0f283';
 							}
+
+							if (inPreview && this.settings.clickView && x > rect.width / 2) {
+								img.style.cursor = 'zoom-in';
+							}
 						}
 						else if (x > rect.width / 2 && this.settings.clickView) {
 							img.style.cursor = 'zoom-in';
 						}
-						else {
+						else if (this.settings.clickView || this.settings.dragResize){
 							img.style.cursor = 'default';
 							img.style.outline = 'none';
 						}
@@ -344,12 +348,14 @@ export default class AttachFlowPlugin extends Plugin {
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
 					const inPreview: boolean = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
-					if (inPreview) return;
 					if (event.buttons != 0) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
-					img.style.borderStyle = 'none';
-					img.style.cursor = 'default';
-					img.style.outline = 'none';
+
+					if (this.settings.clickView || this.settings.dragResize){
+						img.style.borderStyle = 'none';
+						img.style.cursor = 'default';
+						img.style.outline = 'none';
+					}
 				}
 			)
 		);
