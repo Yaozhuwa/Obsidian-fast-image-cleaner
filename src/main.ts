@@ -11,8 +11,6 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi, onElement
 } from "./helpers"
-import { platform } from "os";
-import { off } from "process";
 
 interface MatchedLinkInLine {
 	old_link: string,
@@ -77,24 +75,7 @@ export default class AttachFlowPlugin extends Plugin {
 					mask.style.zIndex = '9998';  // 使遮罩位于其他内容之下，但在大图之上
 					document.body.appendChild(mask);
 
-					const zoomedImage = document.createElement('img');
-					zoomedImage.id = 'af-zoomed-image';
-					zoomedImage.src = (evt.target as HTMLImageElement).src;
-					const realImage = new Image();
-					realImage.onload = function () {
-						zoomedImage.style.width = `${realImage.naturalWidth}px`;
-						zoomedImage.style.height = `${realImage.naturalHeight}px`;
-					}
-					realImage.src = (evt.target as HTMLImageElement).src;
-					zoomedImage.style.position = 'fixed';
-					zoomedImage.style.zIndex = '9999';
-					zoomedImage.style.top = '50%';
-					zoomedImage.style.left = '50%';
-					zoomedImage.style.transform = 'translate(-50%, -50%)';
-					document.body.appendChild(zoomedImage);
-					const originalWidth = zoomedImage.offsetWidth;
-					const originalHeight = zoomedImage.offsetHeight;
-
+					// 图片显示大小百分比
 					const scaleDiv = document.createElement('div');
 					scaleDiv.id = 'af-scale-div';
 					scaleDiv.style.position = 'fixed';
@@ -109,20 +90,77 @@ export default class AttachFlowPlugin extends Plugin {
 					scaleDiv.innerText = '100%';  // 初始化为 100%
 					document.body.appendChild(scaleDiv);
 
+					const zoomedImage = document.createElement('img');
+					zoomedImage.id = 'af-zoomed-image';
+					zoomedImage.src = (evt.target as HTMLImageElement).src;
+					const realImage = new Image();
+					realImage.onload = () => {
+						zoomedImage.style.width = `${realImage.naturalWidth}px`;
+						zoomedImage.style.height = `${realImage.naturalHeight}px`;
+					
+						// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
+						let screenRatio = 0.75;   // 屏幕尺寸比例
+						let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+						let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+					
+						if (realImage.naturalWidth > screenWidth || realImage.naturalHeight > screenHeight) {
+							if (realImage.naturalWidth / screenWidth > realImage.naturalHeight / screenHeight) {
+								zoomedImage.style.width = `${screenWidth * screenRatio}px`;
+								zoomedImage.style.height = 'auto';
+								let scalePercent = screenWidth * screenRatio / realImage.naturalWidth * 100;
+								scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
+							} else {
+								zoomedImage.style.height = `${screenHeight * screenRatio}px`;
+								zoomedImage.style.width = 'auto';
+								let scalePercent = screenHeight * screenRatio / realImage.naturalHeight * 100;
+								scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
+							}
+						}
+					}
+					realImage.src = (evt.target as HTMLImageElement).src;
+					zoomedImage.style.position = 'fixed';
+					zoomedImage.style.zIndex = '9999';
+					zoomedImage.style.top = '50%';
+					zoomedImage.style.left = '50%';
+					zoomedImage.style.transform = 'translate(-50%, -50%)';
+					document.body.appendChild(zoomedImage);
+					const originalWidth = zoomedImage.offsetWidth;
+					const originalHeight = zoomedImage.offsetHeight;
+
 					zoomedImage.addEventListener('wheel', function (e) {
 						e.preventDefault();
+					
+						// 获取鼠标的位置
+						const mouseX = e.clientX;
+						const mouseY = e.clientY;
+					
+						// 计算缩放的中心点（相对于元素的位置）
+						const centerX = mouseX - zoomedImage.offsetLeft;
+						const centerY = mouseY - zoomedImage.offsetTop;
+					
 						// 计算缩放比例，这里我们设定为每次滚动时放大或缩小5%
 						const scale = e.deltaY > 0 ? 0.95 : 1.05;
+					
 						// 获取当前的宽度和高度
 						const width = zoomedImage.offsetWidth;
 						const height = zoomedImage.offsetHeight;
+					
 						// 计算新的宽度和高度
 						const newWidth = width * scale;
 						const newHeight = height * scale;
+					
+						// 根据缩放的中心点调整元素的位置
+						const newLeft = mouseX - centerX * scale;
+						const newTop = mouseY - centerY * scale;
+					
 						// 设置新的宽度和高度
 						zoomedImage.style.width = `${newWidth}px`;
 						zoomedImage.style.height = `${newHeight}px`;
-
+					
+						// 设置新的位置
+						zoomedImage.style.left = `${newLeft}px`;
+						zoomedImage.style.top = `${newTop}px`;
+					
 						// 更新缩放百分比的显示
 						const scalePercent = (newWidth / originalWidth) * 100;
 						scaleDiv.innerText = `${scalePercent.toFixed(1)}%`;
@@ -135,6 +173,40 @@ export default class AttachFlowPlugin extends Plugin {
 						zoomedImage.style.width = `${originalWidth}px`;
 						zoomedImage.style.height = `${originalHeight}px`;
 						scaleDiv.innerText = `100%`;
+					});
+
+					zoomedImage.addEventListener('mousedown', function (evt) {
+						// 阻止浏览器默认的拖动事件
+						evt.preventDefault();
+					
+						// 记录点击位置
+						let clickX = evt.clientX;
+						let clickY = evt.clientY;
+					
+						// 更新元素位置的回调函数
+						const updatePosition = (moveEvt: MouseEvent) => {
+							// 计算鼠标移动距离
+							let moveX = moveEvt.clientX - clickX;
+							let moveY = moveEvt.clientY - clickY;
+					
+							// 定位图片位置
+							zoomedImage.style.left = `${zoomedImage.offsetLeft + moveX}px`;
+							zoomedImage.style.top = `${zoomedImage.offsetTop + moveY}px`;
+					
+							// 更新点击位置
+							clickX = moveEvt.clientX;
+							clickY = moveEvt.clientY;
+						}
+					
+						// 鼠标移动事件
+						document.addEventListener('mousemove', updatePosition);
+					
+						// 鼠标松开事件
+						document.addEventListener('mouseup', function listener() {
+							// 移除鼠标移动和鼠标松开的监听器
+							document.removeEventListener('mousemove', updatePosition);
+							document.removeEventListener('mouseup', listener);
+						}, { once: true });
 					});
 				}
 			} else {

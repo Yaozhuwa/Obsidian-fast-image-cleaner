@@ -35,7 +35,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
     display(): void {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'AttachFlow plugin Settings' });
+        // containerEl.createEl('h2', { text: 'AttachFlow plugin Settings' });
 
         new Setting(containerEl)
             .setName('Deleted Attachment Destination')
