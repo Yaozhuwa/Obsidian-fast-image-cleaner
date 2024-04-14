@@ -134,7 +134,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mousedown",
-				"img, video",
+				"img",
 				(event: MouseEvent) => {
 					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
@@ -179,8 +179,9 @@ export default class AttachFlowPlugin extends Plugin {
 						const startHeight = img.clientHeight;
 						let lastUpdateX = startX;
 						let lastUpdateY = startY;
-						const updateThreshold = 5; // The mouse must move at least 5 pixels before an update
+						const updateThreshold = 0; // The mouse must move at least 5 pixels before an update
 
+						let lastMove = 0;
 						const onMouseMove = (event: MouseEvent) => {
 							// this.AllowZoom = false;
 							img.addEventListener('click', preventEvent);
@@ -219,6 +220,10 @@ export default class AttachFlowPlugin extends Plugin {
 								}
 							}
 
+							const now = Date.now();
+							if (now - lastMove < 100) return; // Only execute once every 100ms
+							lastMove = now;
+
 							// Check if the mouse has moved more than the update threshold
 							if (Math.abs(event.clientX - lastUpdateX) > updateThreshold) {
 								const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -247,7 +252,7 @@ export default class AttachFlowPlugin extends Plugin {
 										updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
 									}
 									else {
-										imageName = img.parentElement?.getAttribute('src') as string;
+										imageName = img.closest('.internal-embed')?.getAttribute('src') as string;
 										updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
 									}
 								}
@@ -281,7 +286,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mouseover",
-				"img, video",
+				"img",
 				(event: MouseEvent) => {
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
@@ -333,7 +338,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mouseout",
-				"img, video",
+				"img",
 				(event: MouseEvent) => {
 					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
@@ -521,7 +526,7 @@ export default class AttachFlowPlugin extends Plugin {
 			target_name = file_base_name;
 		}
 		else {
-			target_name = target.parentElement?.getAttribute("src") as string;
+			target_name = target.closest('.internal-embed')?.getAttribute("src") as string;
 			// 删除 target_name 可能前缀的多个 '../'，支持链接路径为当前笔记的相对路径
 			target_name = target_name.replace(/^(\.\.\/)+/g, '');
 			let pdf_match = target_name.match(/.*\.pdf/);
