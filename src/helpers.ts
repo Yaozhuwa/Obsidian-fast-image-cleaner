@@ -23,7 +23,7 @@
 
 import { App, Editor, EditorPosition, FileSystemAdapter } from "obsidian";
 
-const loadImageBlobTimeout = 5000;
+const loadImageBlobTimeout = 3000;
 
 export interface ElectronWindow extends Window {
     WEBVIEW_SERVER_URL: string
@@ -65,7 +65,7 @@ export function withTimeout<T>(ms: number, promise: Promise<T>): Promise<T> {
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image
 // option?: https://www.npmjs.com/package/html-to-image
-export async function loadImageBlob(imgSrc: string): Promise<Blob> {
+export async function loadImageBlob(imgSrc: string, retryCount = 0): Promise<Blob> {
     const loadImageBlobCore = () => {
         return new Promise<Blob>((resolve, reject) => {
             const image = new Image();
@@ -81,21 +81,22 @@ export async function loadImageBlob(imgSrc: string): Promise<Blob> {
                 });
             };
             image.onerror = async () => {
-                try {
-                    await fetch(image.src, { "mode": "no-cors" });
-
-                    // console.log("possible CORS violation, falling back to allOrigins proxy");
-                    // https://github.com/gnuns/allOrigins
-                    const blob = await loadImageBlob(`https://api.allorigins.win/raw?url=${encodeURIComponent(imgSrc)}`);
-                    resolve(blob);
-                } catch {
-                    reject();
+                if (retryCount < 3) {
+                    try {
+                        await fetch(image.src, { "mode": "no-cors" });
+                        const blob = await loadImageBlob(`https://api.allorigins.win/raw?url=${encodeURIComponent(imgSrc)}`, retryCount + 1);
+                        resolve(blob);
+                    } catch {
+                        reject();
+                    }
+                } else {
+                    reject(new Error('Unable to retrieve the image data after 3 retries.'));
                 }
-            }
+            };
             image.src = imgSrc;
         });
     };
-    return withTimeout(loadImageBlobTimeout, loadImageBlobCore())
+    return withTimeout(loadImageBlobTimeout, loadImageBlobCore());
 }
 
 export function onElement(

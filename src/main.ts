@@ -506,15 +506,13 @@ export default class AttachFlowPlugin extends Plugin {
 				.setIcon("copy")
 				.setTitle("Copy image to clipboard")
 				.onClick(async () => {
-					// const blob = await loadImageBlob(img.src);
-					// navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 					try {
 						const blob = await loadImageBlob(img.src);
 						await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-						console.log('Image copied to clipboard');
+						new Notice('Image copied to clipboard');
 					}
 					catch (error) {
-						console.error('Failed to copy image: ', error);
+						new Notice('Failed to copy image!');
 					}
 				})
 		);
