@@ -290,32 +290,6 @@ export const handlerCopyFile = async (
 		console.error(error);
 		new Notice("Faild to copy the file !", SUCCESS_NOTICE_TIMEOUT);
 	}
-
-	// copy file to clipboard
-	// try {
-		// console.log(file_ab_path)
-
-		// 先查看剪贴板内容
-		// const clipboardItems = await navigator.clipboard.read();
-		// console.log(clipboardItems[0])
-		// let tp = clipboardItems[0].types[0]
-		// console.log(tp, clipboardItems[0].getType(tp))
-
-		// 复制图片，但是只能以PNG形式粘贴，即使复制的是GIF或者JPG
-		// const image = fs.readFileSync(file_ab_path);
-		// let file_type: string = 'image/png';
-		// const blob = new Blob([image], { type: file_type });
-		// const item = new ClipboardItem({ [file_type]: blob });
-		// await navigator.clipboard.write([item]);
-
-	// 	copyFileToClipboardCMD(file_ab_path);
-
-	// 	new Notice("Copied to clipboard !", SUCCESS_NOTICE_TIMEOUT);
-	// }
-	// catch (error) {
-	// 	console.error(error);
-	// 	new Notice("Faild to copy the file !", SUCCESS_NOTICE_TIMEOUT);
-	// }
 }
 
 /**

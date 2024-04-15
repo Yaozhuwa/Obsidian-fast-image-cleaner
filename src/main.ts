@@ -3,7 +3,7 @@ import { addCommand } from "./config/addCommand-config";
 import { AttachFlowSettingsTab } from "./settings";
 import { AttachFlowSettings, DEFAULT_SETTINGS } from "./settings";
 import * as Util from "./util";
-import { print, setDebug } from './util'
+import { print, setDebug, deleteCurTargetLink } from './util'
 import { getMouseEventTarget } from "./utils/handlerEvent";
 import { DeleteAllLogsModal } from "./modals/deletionPrompt";
 import { EditorView, keymap, ViewUpdate } from '@codemirror/view';
@@ -105,7 +105,7 @@ export default class AttachFlowPlugin extends Plugin {
 				document,
 				"contextmenu" as keyof HTMLElementEventMap,
 				"img, iframe, video, div.file-embed-title, audio",
-				this.onClick.bind(this)
+				this.onRightClickMenu.bind(this)
 			)
 		);
 
@@ -180,7 +180,6 @@ export default class AttachFlowPlugin extends Plugin {
 						const startHeight = img.clientHeight;
 						let lastUpdateX = startX;
 						let lastUpdateY = startY;
-						const updateThreshold = 0; // The mouse must move at least 5 pixels before an update
 
 						let lastMove = 0;
 						const onMouseMove = (event: MouseEvent) => {
@@ -208,60 +207,34 @@ export default class AttachFlowPlugin extends Plugin {
 								img.style.boxSizing = 'border-box';
 								img.style.width = `${newWidth}px`;
 								// img.style.height = `${newHeight}px`;
-							} else if (img instanceof HTMLVideoElement) {
-								img.style.border = 'solid';
-								img.style.borderWidth = '2px';
-								img.style.borderColor = 'blue';
-								img.style.boxSizing = 'border-box';
-								// Check if img.parentElement is not null before trying to access its clientWidth property
-								if (img.parentElement) {
-									const containerWidth = img.parentElement.clientWidth;
-									const newWidthPercentage = (newWidth / containerWidth) * 100;
-									img.style.width = `${newWidthPercentage}%`;
-								}
 							}
 
 							const now = Date.now();
 							if (now - lastMove < 100) return; // Only execute once every 100ms
 							lastMove = now;
 
-							// Check if the mouse has moved more than the update threshold
-							if (Math.abs(event.clientX - lastUpdateX) > updateThreshold) {
-								const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-								if (activeView) {
-									print("update new Width", newWidth);
-									let imageName = img.getAttribute('src');
-									if (imageName?.startsWith('http')) {
-										updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
-									}
-									else if (isExcalidraw) {
-										let target_name = img.getAttribute('filesource') as string;
-										let draw_base_name = target_name
-										if (draw_base_name.includes('/')) {
-											let temp_arr = draw_base_name.split('/');
-											draw_base_name = temp_arr[temp_arr.length - 1]
-										} else if (draw_base_name.includes('\\')) {
-											let temp_arr = draw_base_name.split('\\');
-											draw_base_name = temp_arr[temp_arr.length - 1]
-										}
-										draw_base_name = draw_base_name.endsWith('.md') ?
-											draw_base_name.substring(0, draw_base_name.length - 3) :
-											draw_base_name;
-										print(target_name)
-										print('excalidraw file:', draw_base_name)
-										img.style.maxWidth = 'none';
-										updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
-									}
-									else {
-										imageName = img.closest('.internal-embed')?.getAttribute('src') as string;
-										updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
-									}
+							const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+							if (activeView) {
+								print("update new Width", newWidth);
+								let imageName = img.getAttribute('src');
+								if (imageName?.startsWith('http')) {
+									updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
 								}
-
-								// Update the last update coordinates
-								lastUpdateX = event.clientX;
-								lastUpdateY = event.clientY;
+								else if (isExcalidraw) {
+									let target_name = img.getAttribute('filesource') as string;
+									let draw_base_name = getExcalidrawBaseName(img as HTMLImageElement);
+									img.style.maxWidth = 'none';
+									updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
+								}
+								else {
+									imageName = img.closest('.internal-embed')?.getAttribute('src') as string;
+									updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
+								}
 							}
+
+							// Update the last update coordinates
+							lastUpdateX = event.clientX;
+							lastUpdateY = event.clientY;
 						}
 
 						const allowOtherEvent = () => {
@@ -370,64 +343,7 @@ export default class AttachFlowPlugin extends Plugin {
 				document,
 				"mousedown",
 				"img",
-				(event: MouseEvent) => {
-					const img = event.target as HTMLImageElement;
-					const inTable: boolean = img.closest('table') != null;
-					if (img.id == 'af-zoomed-image') return;
-					if (!img.src.startsWith('http')) return;
-					if (event.button != 2) return;
-					event.preventDefault();
-					print("http image right click")
-					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor?.blur();
-					img.style.cursor = 'default';
-					const menu = new Menu();
-					menu.addItem((item: MenuItem) =>
-						item
-							.setIcon("copy")
-							.setTitle("Copy image to clipboard")
-							.onClick(async () => {
-								const blob = await loadImageBlob(img.src);
-								navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-							})
-					);
-
-					menu.addItem((item: MenuItem) =>
-						item
-							.setIcon("link")
-							.setTitle("Copy image link")
-							.onClick(async () => {
-								navigator.clipboard.writeText(img.src);
-							})
-					);
-					menu.addItem((item: MenuItem) =>
-						item
-							.setIcon("link")
-							.setTitle("Copy markdown link")
-							.onClick(async () => {
-								navigator.clipboard.writeText(`![](${img.src})`);
-							})
-					);
-					menu.addItem((item: MenuItem) =>
-						item
-							.setIcon("external-link")
-							.setTitle("Open in external browser")
-							.onClick(async () => {
-								window.open(img.src, '_blank');
-							})
-					);
-
-					this.registerEscapeButton(menu);
-
-					let offset = -88;
-					if (inTable) {
-						menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
-					}
-					else{
-						menu.showAtPosition({ x: event.pageX, y: event.pageY });
-					}
-					
-					this.app.workspace.trigger("AttachFlow:contextmenu", menu);
-				}
+				this.externalImageContextMenuCall.bind(this)
 			)
 		);
 		
@@ -459,6 +375,38 @@ export default class AttachFlowPlugin extends Plugin {
 				}
 			)
 		);
+	}
+
+	externalImageContextMenuCall(event: MouseEvent) {
+		const img = event.target as HTMLImageElement;
+		const inTable: boolean = img.closest('table') != null;
+		const inCallout: boolean = img.closest('.callout') != null;
+		if (img.id == 'af-zoomed-image') return;
+		if (!img.src.startsWith('http')) return;
+		if (event.button != 2) return;
+		event.preventDefault();
+		this.app.workspace.getActiveViewOfType(MarkdownView)?.editor?.blur();
+		img.style.cursor = 'default';
+		const menu = new Menu();
+		const inPreview = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
+		if (inPreview) {
+			this.addExternalImageMenuPreviewMode(menu, img);
+		}
+		else {
+			this.addExternalImageMenuSourceMode(menu, img, inTable, inCallout);
+		}
+
+		this.registerEscapeButton(menu);
+
+		let offset = inPreview ? 0 : -138;
+		if (inTable) {
+			menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
+		}
+		else {
+			menu.showAtPosition({ x: event.pageX, y: event.pageY });
+		}
+
+		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
 	}
 
 
@@ -552,10 +500,71 @@ export default class AttachFlowPlugin extends Plugin {
 	};
 
 
+	addExternalImageMenuPreviewMode = (menu: Menu, img: HTMLImageElement) => {
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("copy")
+				.setTitle("Copy image to clipboard")
+				.onClick(async () => {
+					// const blob = await loadImageBlob(img.src);
+					// navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+					try {
+						const blob = await loadImageBlob(img.src);
+						await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+						console.log('Image copied to clipboard');
+					}
+					catch (error) {
+						console.error('Failed to copy image: ', error);
+					}
+				})
+		);
+
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("link")
+				.setTitle("Copy image link")
+				.onClick(async () => {
+					navigator.clipboard.writeText(img.src);
+				})
+		);
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("link")
+				.setTitle("Copy markdown link")
+				.onClick(async () => {
+					navigator.clipboard.writeText(`![](${img.src})`);
+				})
+		);
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("external-link")
+				.setTitle("Open in external browser")
+				.onClick(async () => {
+					window.open(img.src, '_blank');
+				})
+		);
+	}
+
+	addExternalImageMenuSourceMode = (menu: Menu, img: HTMLImageElement, inTable: boolean, inCallout: boolean) => {
+		this.addExternalImageMenuPreviewMode(menu, img);
+		menu.addItem((item: MenuItem) =>
+			item
+				.setIcon("trash-2")
+				.setTitle("Clear image link")
+				.onClick(() => {
+					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+					//  @ts-expect-error, not typed
+					const editorView = editor.cm as EditorView;
+					const target_pos = editorView.posAtDOM(img);
+					deleteCurTargetLink(img.src, this, 'img', target_pos, inTable, inCallout);
+				})
+		);
+	}
+
 	/**
 	 * 鼠标右键菜单事件
 	 */
-	onClick(event: MouseEvent) {
+	onRightClickMenu(event: MouseEvent) {
 		const target = getMouseEventTarget(event);
 		const curTargetType = target.localName;
 		if (target.id == 'af-zoomed-image') return;
@@ -589,19 +598,8 @@ export default class AttachFlowPlugin extends Plugin {
 		}
 
 		if (isExcalidraw) {
-			target_name = target.getAttribute('filesource') as string;
-			let file_base_name = target_name
-			if (file_base_name.includes('/')) {
-				let temp_arr = file_base_name.split('/');
-				file_base_name = temp_arr[temp_arr.length - 1]
-			} else if (file_base_name.includes('\\')) {
-				let temp_arr = file_base_name.split('\\');
-				file_base_name = temp_arr[temp_arr.length - 1]
-			}
-			file_base_name = file_base_name.endsWith('.md') ?
-				file_base_name.substring(0, file_base_name.length - 3) :
-				file_base_name;
-			target_name = file_base_name;
+			target_name = getExcalidrawBaseName(target as HTMLImageElement);
+			target_name = target_name.replace(/^(\.\.\/)+/g, '');
 		}
 		else {
 			target_name = target.closest('.internal-embed')?.getAttribute("src") as string;
@@ -712,7 +710,6 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 	let mode = inTable ? 'table' : 'callout';
 	print('mode', mode)
-	// print("imageName", imageName)
 
 	const start_reg = startReg[mode];
 	let start_line_number = target_line.number;
@@ -720,9 +717,6 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 	let matched_lines: number[] = [];  //1-based
 	for (let i = start_line_number; i <= editor.lineCount(); i++) {
 		let line = editorView.state.doc.line(i);
-		// console.log('line.text', line.text)
-		// console.log('start_reg', start_reg)
-		// console.log('start_reg.test(line.text)', start_reg.test(line.text))
 		if (!start_reg.test(line.text)) break;
 		let matched = matchLineWithInternalLink(line.text, imageName, newWidth, inTable);
 		matched_results.push(...matched);
@@ -953,21 +947,24 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let result: MatchedLinkInLine[] = []
 	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
-	if (!line_text.includes(link) || !line_text.includes(alt_text)) return [];
-	let newExternalLink = intable ?
-		`![${alt_text}\\|${new_width}](${link})` :
-		`![${alt_text}|${new_width}](${link})`;
-	if (/^\d*$/.test(alt_text) || /^\s*$/.test(alt_text)) {
-		newExternalLink = `![${new_width}](${link})`;
-	}
+	if (!line_text.includes(link)) return [];
 	while (true) {
 		let match = regMdLink.exec(line_text);
 		if (!match) break;
 		let matched_link = match[0];
-		if (matched_link.includes(link) && matched_link.includes(alt_text)) {
-			// let newLineText = line_text.substring(0, match.index) + 
-			// 					newExternalLink + 
-			// 					line_text.substring(match.index+matched_link.length);
+		if (matched_link.includes(link)) {
+			let alt_text_match = matched_link.match(/\[.*?\]/g) as string[];
+			let alt_text = alt_text_match[0].substring(1, alt_text_match[0].length - 1);
+			let pure_alt = alt_text.replace(/\|\d+(\|\d+)?$/g, '');
+			if (intable) {
+				pure_alt = alt_text.replace(/\\\|\d+(\|\d+)?$/g, '')
+			}
+			if (/^\d*$/.test(alt_text)) {
+				pure_alt = '';
+			}
+			let link_text = matched_link.substring(alt_text_match[0].length + 2, matched_link.length - 1)
+			let newExternalLink = intable ? `![${pure_alt}\\|${new_width}](${link_text})` : `![${pure_alt}|${new_width}](${link_text})`;
+			
 			result.push({
 				old_link: matched_link,
 				new_link: newExternalLink,
@@ -1128,4 +1125,20 @@ function handleZoomDragStart(e: MouseEvent,zoomedImage: HTMLImageElement) {
 		document.removeEventListener('mousemove', updatePosition);
 		document.removeEventListener('mouseup', listener);
 	}, { once: true });
+}
+
+function getExcalidrawBaseName(target: HTMLImageElement): string {
+	let target_name = target.getAttribute('filesource') as string;
+	let file_base_name = target_name
+	if (file_base_name.includes('/')) {
+		let temp_arr = file_base_name.split('/');
+		file_base_name = temp_arr[temp_arr.length - 1]
+	} else if (file_base_name.includes('\\')) {
+		let temp_arr = file_base_name.split('\\');
+		file_base_name = temp_arr[temp_arr.length - 1]
+	}
+	file_base_name = file_base_name.endsWith('.md') ?
+		file_base_name.substring(0, file_base_name.length - 3) :
+		file_base_name;
+	return file_base_name;
 }
