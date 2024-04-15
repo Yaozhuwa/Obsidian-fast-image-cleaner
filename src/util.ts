@@ -362,7 +362,10 @@ function copyFileToClipboardCMD(filePath: string) {
         // exec(`xclip -selection c < ${filePath}`, callback);
 		// exec(`xclip -selection clipboard -t $(file --mime-type -b "${filePath}") -i "${filePath}"`, callback);
     } else if (process.platform === 'win32') {
-        exec(`powershell -command "Set-Clipboard -Path '${filePath}'"`, callback);
+		// 当文件路径包含 '
+		// 在PowerShell中，单引号字符串是直接的字符串，内部的单引号无法通过反斜线来转义，但是可以通过在单引号前再加一个单引号来进行转义。
+		let safeFilePath = filePath.replace(/'/g, "''");
+        exec(`powershell -command "Set-Clipboard -Path '${safeFilePath}'"`, callback);
     }
 }
 
