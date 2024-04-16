@@ -621,6 +621,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 			return;
 		}
+		target.style.cursor = 'default';
 
 		if (isExcalidraw) {
 			target_name = getExcalidrawBaseName(target as HTMLImageElement);
