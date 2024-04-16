@@ -146,7 +146,7 @@ export default class AttachFlowPlugin extends Plugin {
 					if (event.button === 0) {
 						event.preventDefault();
 					}
-					const img = event.target as HTMLImageElement | HTMLVideoElement;
+					const img = event.target as HTMLImageElement;
 					if (img.id == 'af-zoomed-image') return;
 
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
@@ -181,13 +181,17 @@ export default class AttachFlowPlugin extends Plugin {
 						let lastUpdateX = startX;
 						let lastUpdateY = startY;
 
-						let lastMove = 0;
+						let lastUpdate = 1;
+						let updatedWidth = startWidth;
+						let lastMoveTime = Date.now();
 						const onMouseMove = (event: MouseEvent) => {
 							// this.AllowZoom = false;
 							img.addEventListener('click', preventEvent);
 							// img.addEventListener('mouseover', preventEvent);
 							// img.addEventListener('mouseout', preventEvent);
 							const currentX = event.clientX;
+							lastUpdate = currentX - lastUpdateX == 0?lastUpdate:currentX - lastUpdateX;
+							// print('lastUpdate', lastUpdate)
 							let newWidth = startWidth + (currentX - startX);
 							const aspectRatio = startWidth / startHeight;
 
@@ -198,6 +202,7 @@ export default class AttachFlowPlugin extends Plugin {
 							// Round the values to the nearest whole number
 							newWidth = Math.round(newWidth);
 							newHeight = Math.round(newHeight);
+							updatedWidth = newWidth;
 
 							// Apply the new dimensions to the image or video
 							if (img instanceof HTMLImageElement) {
@@ -210,28 +215,10 @@ export default class AttachFlowPlugin extends Plugin {
 							}
 
 							const now = Date.now();
-							if (now - lastMove < 100) return; // Only execute once every 100ms
-							lastMove = now;
-
-							const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-							if (activeView) {
-								print("update new Width", newWidth);
-								let imageName = img.getAttribute('src');
-								if (imageName?.startsWith('http')) {
-									updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
-								}
-								else if (isExcalidraw) {
-									let target_name = img.getAttribute('filesource') as string;
-									let draw_base_name = getExcalidrawBaseName(img as HTMLImageElement);
-									img.style.maxWidth = 'none';
-									updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
-								}
-								else {
-									imageName = img.closest('.internal-embed')?.getAttribute('src') as string;
-									updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
-								}
-							}
-
+							if (now - lastMoveTime < 100) return; // Only execute once every 100ms
+							lastMoveTime = now;
+							// update image link
+							this.updateImageLinkWithNewSize(img, target_pos, newWidth, newHeight);
 							// Update the last update coordinates
 							lastUpdateX = event.clientX;
 							lastUpdateY = event.clientY;
@@ -249,6 +236,18 @@ export default class AttachFlowPlugin extends Plugin {
 							img.style.cursor = 'default';
 							document.removeEventListener("mousemove", onMouseMove);
 							document.removeEventListener("mouseup", onMouseUp);
+
+							// 遵循最小刻度
+							if (this.settings.resizeInterval > 1) {
+								let resize_interval = this.settings.resizeInterval;
+								let width_offset = lastUpdate>0?resize_interval:0;
+								if (updatedWidth%resize_interval!=0) {
+									updatedWidth = Math.floor(updatedWidth/resize_interval)*resize_interval+width_offset;
+								}
+								img.style.width = `${updatedWidth}px`;
+								this.updateImageLinkWithNewSize(img, target_pos, updatedWidth, 0);
+							}
+							
 						};
 						document.addEventListener("mousemove", onMouseMove);
 						document.addEventListener("mouseup", onMouseUp);
@@ -375,6 +374,30 @@ export default class AttachFlowPlugin extends Plugin {
 				}
 			)
 		);
+	}
+
+	updateImageLinkWithNewSize = (img: HTMLImageElement, target_pos: number, newWidth: number, newHeight: number) => {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const inTable: boolean = img.closest('table') != null;
+		const inCallout: boolean = img.closest('.callout') != null;
+		const isExcalidraw = img.classList.contains('excalidraw-embedded-img');
+		if (activeView) {
+			print("update new Width", newWidth);
+			let imageName = img.getAttribute('src');
+			if (imageName?.startsWith('http')) {
+				updateExternalLink(activeView, img, target_pos, newWidth, newHeight, inTable, inCallout);
+			}
+			else if (isExcalidraw) {
+				let target_name = img.getAttribute('filesource') as string;
+				let draw_base_name = getExcalidrawBaseName(img as HTMLImageElement);
+				img.style.maxWidth = 'none';
+				updateInternalLink(activeView, img, target_pos, draw_base_name, newWidth, newHeight, inTable, inCallout);
+			}
+			else {
+				imageName = img.closest('.internal-embed')?.getAttribute('src') as string;
+				updateInternalLink(activeView, img, target_pos, imageName, newWidth, newHeight, inTable, inCallout);
+			}
+		}
 	}
 
 	externalImageContextMenuCall(event: MouseEvent) {
