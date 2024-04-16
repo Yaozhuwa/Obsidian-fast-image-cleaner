@@ -10,6 +10,7 @@ export interface AttachFlowSettings {
     dragResize: boolean;
     resizeInterval: number;
     clickView: boolean;
+    adaptiveRatio: number;
     debug: boolean;
 }
 
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: AttachFlowSettings = {
     dragResize: true,
     resizeInterval: 0,
     clickView: false,
+    adaptiveRatio: 0.9,
     debug: false,
 };
 
@@ -52,6 +54,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
                 });
             });
 
+        new Setting(containerEl).setName('Click to view images').setHeading();
         new Setting(containerEl)
             .setName("Click to view images")
             .setDesc("点击图片右半区域查看大图")
@@ -61,6 +64,20 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
                         this.plugin.settings.clickView = value;
                         await this.plugin.saveSettings();
                     });
+            });
+        
+        new Setting(containerEl)
+            .setName('Adaptive image display ratio based on window size')
+            .setDesc('When the image exceeds the window size, the image is displayed adaptively according to the window size.')
+            .addSlider((slider) => {
+                slider.setLimits(0.1, 1, 0.05);
+                slider.setValue(this.plugin.settings.adaptiveRatio);
+                slider.onChange(async (value) => {
+                    this.plugin.settings.adaptiveRatio = value;
+                    new Notice(`Adaptive ratio: ${value}`);
+                    await this.plugin.saveSettings();
+                });
+                slider.setDynamicTooltip();
             });
 
         new Setting(containerEl).setName('Drag to resize images').setHeading();

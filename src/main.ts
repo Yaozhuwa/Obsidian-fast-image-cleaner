@@ -68,11 +68,15 @@ export default class AttachFlowPlugin extends Plugin {
 			if (evt.clientX <= imageCenter || document.getElementById('af-zoomed-image')) return;
 			evt.preventDefault();
 			const mask = createZoomMask();
-			const { zoomedImage, originalWidth, originalHeight } = await createZoomedImage((target as HTMLImageElement).src);
+			const { zoomedImage, originalWidth, originalHeight } = await createZoomedImage((target as HTMLImageElement).src, this.settings.adaptiveRatio);
 			const scaleDiv = createZoomScaleDiv(zoomedImage, originalWidth, originalHeight);
 			zoomedImage.addEventListener('wheel', (e) => handleZoomMouseWheel(e, zoomedImage, originalWidth, originalHeight, scaleDiv));
 			zoomedImage.addEventListener('contextmenu', (e) => handleZoomContextMenu(e, zoomedImage, originalWidth, originalHeight, scaleDiv));
 			zoomedImage.addEventListener('mousedown', (e) => handleZoomDragStart(e, zoomedImage));
+			zoomedImage.addEventListener('dblclick', (e) => {
+				adaptivelyDisplayImage(zoomedImage, originalWidth, originalHeight, this.settings.adaptiveRatio);
+				updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+			});
 		});
 
 		this.registerDomEvent(document, 'keydown', (evt: KeyboardEvent) => {
@@ -1017,7 +1021,7 @@ function createZoomMask(): HTMLDivElement {
 }
 
 // 创建放大的图像元素
-async function createZoomedImage(src: string): Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}> {
+async function createZoomedImage(src: string, adaptive_ratio: number): Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}> {
     const zoomedImage = document.createElement('img');
     zoomedImage.id = 'af-zoomed-image';
     zoomedImage.src = src;
@@ -1031,21 +1035,7 @@ async function createZoomedImage(src: string): Promise<{zoomedImage: HTMLImageEl
     let originalWidth = zoomedImage.naturalWidth;
 	let originalHeight = zoomedImage.naturalHeight;
 
-	// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
-	let screenRatio = 0.75;   // 屏幕尺寸比例
-	let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-	let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-
-	// Adjust initial size of the image if it exceeds screen size
-	if (originalWidth > screenWidth || originalHeight > screenHeight) {
-		if (originalWidth / screenWidth > originalHeight / screenHeight) {
-			zoomedImage.style.width = `${screenWidth * screenRatio}px`;
-			zoomedImage.style.height = 'auto';
-		} else {
-			zoomedImage.style.height = `${screenHeight * screenRatio}px`;
-			zoomedImage.style.width = 'auto';
-		}
-	}
+	adaptivelyDisplayImage(zoomedImage, originalWidth, originalHeight, adaptive_ratio);
 
     return {
 		zoomedImage,
@@ -1105,6 +1095,30 @@ function handleZoomContextMenu(e: MouseEvent,zoomedImage: HTMLImageElement, orig
     zoomedImage.style.left = `50%`;
     zoomedImage.style.top = `50%`;
 	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+}
+
+
+function adaptivelyDisplayImage(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, adaptive_ratio:number) {
+	zoomedImage.style.left = `50%`;
+	zoomedImage.style.top = `50%`;
+	// 如果图片的尺寸大于屏幕尺寸，使其大小为屏幕尺寸的 adaptive_ratio
+	let screenRatio = adaptive_ratio;   // 屏幕尺寸比例
+	let screenWidth = window.innerWidth;
+	let screenHeight = window.innerHeight;
+
+	// Adjust initial size of the image if it exceeds screen size
+	if (originalWidth > screenWidth || originalHeight > screenHeight) {
+		if (originalWidth / screenWidth > originalHeight / screenHeight) {
+			zoomedImage.style.width = `${screenWidth * screenRatio}px`;
+			zoomedImage.style.height = 'auto';
+		} else {
+			zoomedImage.style.height = `${screenHeight * screenRatio}px`;
+			zoomedImage.style.width = 'auto';
+		}
+	}else{
+		zoomedImage.style.width = `${originalWidth}px`;
+		zoomedImage.style.height = `${originalHeight}px`;
+	}
 }
 
 function handleZoomDragStart(e: MouseEvent,zoomedImage: HTMLImageElement) {
