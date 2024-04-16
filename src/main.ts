@@ -1028,36 +1028,30 @@ async function createZoomedImage(src: string): Promise<{zoomedImage: HTMLImageEl
     zoomedImage.style.transform = 'translate(-50%, -50%)';
     document.body.appendChild(zoomedImage);
 
-    const loaded = new Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}>((resolve) => {
-        zoomedImage.onload = () => {
-			let originalWidth = zoomedImage.width;
-			let originalHeight = zoomedImage.height;
+    let originalWidth = zoomedImage.naturalWidth;
+	let originalHeight = zoomedImage.naturalHeight;
 
-			// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
-			let screenRatio = 0.75;   // 屏幕尺寸比例
-			let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-			let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+	// 如果图片的尺寸大于屏幕尺寸，使其初始大小为屏幕尺寸的 75%
+	let screenRatio = 0.75;   // 屏幕尺寸比例
+	let screenWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+	let screenHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
-            // Adjust initial size of the image if it exceeds screen size
-            if (originalWidth > screenWidth || originalHeight > screenHeight) {
-				if (originalWidth / screenWidth > originalHeight / screenHeight) {
-					zoomedImage.style.width = `${screenWidth * screenRatio}px`;
-					zoomedImage.style.height = 'auto';
-				} else {
-					zoomedImage.style.height = `${screenHeight * screenRatio}px`;
-					zoomedImage.style.width = 'auto';
-				}
-            }
+	// Adjust initial size of the image if it exceeds screen size
+	if (originalWidth > screenWidth || originalHeight > screenHeight) {
+		if (originalWidth / screenWidth > originalHeight / screenHeight) {
+			zoomedImage.style.width = `${screenWidth * screenRatio}px`;
+			zoomedImage.style.height = 'auto';
+		} else {
+			zoomedImage.style.height = `${screenHeight * screenRatio}px`;
+			zoomedImage.style.width = 'auto';
+		}
+	}
 
-            resolve({
-                zoomedImage,
-                originalWidth,
-                originalHeight
-            });
-        };
-    });
-
-    return loaded;
+    return {
+		zoomedImage,
+		originalWidth,
+		originalHeight
+	};
 }
 
 // 创建百分比指示元素
