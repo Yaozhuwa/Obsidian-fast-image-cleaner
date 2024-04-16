@@ -40,6 +40,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
+        new Setting(containerEl).setName('Right-click menu for attachments').setHeading();
         new Setting(containerEl)
             .setName('Deleted attachment destination')
             .setDesc('Select where you want Attachments to be moved once they are deleted')
@@ -57,7 +58,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
         new Setting(containerEl).setName('Click to view images').setHeading();
         new Setting(containerEl)
             .setName("Click to view images")
-            .setDesc("点击图片右半区域查看大图")
+            .setDesc("Click the right half of the image to view the image in detail.")
             .addToggle((toggle) => {
                 toggle.setValue(this.plugin.settings.clickView)
                     .onChange(async (value) => {
@@ -83,7 +84,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
         new Setting(containerEl).setName('Drag to resize images').setHeading();
         new Setting(containerEl)
             .setName("Drag to resize images")
-            .setDesc("拖拽调整图片大小开关")
+            .setDesc("Turn on to enable drag to resize images.")
             .addToggle((toggle) => {
                 toggle.setValue(this.plugin.settings.dragResize)
                     .onChange(async (value) => {
@@ -94,7 +95,7 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName("Resize interval")
-            .setDesc("拖拽调节最小刻度")
+            .setDesc("拖拽调节最小刻度（默认值为 0 即不对齐刻度）")
             .addText((text) => {
                 text.setValue(this.plugin.settings.resizeInterval.toString())
                     .onChange(async (value) => {
@@ -116,8 +117,8 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl).setName('Debug').setHeading();
         new Setting(containerEl)
-            .setName("Print debug information in console")
-            .setDesc("控制台输出调试信息")
+            .setName("Debug mode")
+            .setDesc("Print debug information in console")
             .addToggle((toggle) => {
                 toggle.setValue(this.plugin.settings.debug)
                     .onChange(async (value) => {
