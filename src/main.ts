@@ -22,6 +22,7 @@ interface MatchedLinkInLine {
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
 	edgeSize: number;
+	observer: MutationObserver;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
@@ -85,11 +86,53 @@ export default class AttachFlowPlugin extends Plugin {
 			}
 		});
 
+		this.initMutationObserver();
+
 		setDebug(this.settings.debug);
 	}
 
 	onunload() {
+		this.observer.disconnect();
 		console.log("AttachFlow plugin unloaded...");
+	}
+
+	initMutationObserver() {
+		// Select the node that will be observed for mutations
+		const targetNode = document.querySelector('.workspace');
+
+		if (!targetNode) return;
+
+		// Options for the observer (which mutations to observe)
+		const config = { childList: true, subtree: true };
+
+		// Callback function to execute when mutations are observed
+		const callback = (mutationsList: MutationRecord[], observer: MutationObserver) => {
+			// Look through all mutations that just occured
+			for (let mutation of mutationsList) {
+				// If the addedNodes property has one or more nodes
+				if (mutation.addedNodes.length) {
+					mutation.addedNodes.forEach(node => {
+						if (!(node instanceof Element)) return;
+
+						const videos = node.querySelectorAll('video');
+						videos.forEach(video => {
+							const parentDiv = video.closest('.internal-embed.media-embed.video-embed.is-loaded');
+							if (parentDiv && parentDiv.getAttribute('width')) {
+								video.style.width = parentDiv.getAttribute('width') + 'px';
+							}
+						});
+					});
+				}
+			}
+		};
+
+		// Create an observer instance linked to the callback function
+		this.observer = new MutationObserver(callback);
+
+		// Start observing the target node for the configured mutations
+		this.observer.observe(targetNode, config);
+
+		// Later, you can stop observing with: observer.disconnect();
 	}
 
 	removeZoomedImage() {
@@ -139,7 +182,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mousedown",
-				"img",
+				"img, video",
 				(event: MouseEvent) => {
 					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
@@ -150,7 +193,7 @@ export default class AttachFlowPlugin extends Plugin {
 					if (event.button === 0) {
 						event.preventDefault();
 					}
-					const img = event.target as HTMLImageElement;
+					const img = event.target as HTMLImageElement | HTMLVideoElement;
 					if (img.id == 'af-zoomed-image') return;
 
 					const editor = this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
@@ -209,11 +252,8 @@ export default class AttachFlowPlugin extends Plugin {
 							updatedWidth = newWidth;
 
 							// Apply the new dimensions to the image or video
-							if (img instanceof HTMLImageElement) {
-								img.classList.add('image-in-drag-resize')
-								img.style.width = `${newWidth}px`;
-								// img.style.height = `${newHeight}px`;
-							}
+							img.classList.add('image-in-drag-resize')
+							img.style.width = `${newWidth}px`;
 
 							const now = Date.now();
 							if (now - lastMoveTime < 100) return; // Only execute once every 100ms
@@ -258,7 +298,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mouseover",
-				"img",
+				"img, video",
 				(event: MouseEvent) => {
 					const currentMd = app.workspace.getActiveFile() as TFile;
 					if (currentMd.name.endsWith('.canvas')) return;
@@ -312,7 +352,7 @@ export default class AttachFlowPlugin extends Plugin {
 			onElement(
 				document,
 				"mouseout",
-				"img",
+				"img, video",
 				(event: MouseEvent) => {
 					if (!this.settings.dragResize) return;
 					const currentMd = app.workspace.getActiveFile() as TFile;
@@ -369,7 +409,7 @@ export default class AttachFlowPlugin extends Plugin {
 		);
 	}
 
-	updateImageLinkWithNewSize = (img: HTMLImageElement, target_pos: number, newWidth: number, newHeight: number) => {
+	updateImageLinkWithNewSize = (img: HTMLImageElement|HTMLVideoElement, target_pos: number, newWidth: number, newHeight: number) => {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const inTable: boolean = img.closest('table') != null;
 		const inCallout: boolean = img.closest('.callout') != null;
