@@ -232,7 +232,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const onMouseUp = (event: MouseEvent) => {
 							setTimeout(allowOtherEvent, 100);
 							event.preventDefault()
-							img.classList.remove('image-in-drag-resize', )
+							img.classList.remove('image-in-drag-resize', 'image-ready-resize', 'image-ready-click-view')
 							document.removeEventListener("mousemove", onMouseMove);
 							document.removeEventListener("mouseup", onMouseUp);
 
@@ -266,7 +266,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// if (inPreview) return;
 
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
-					const rect = img.getBoundingClientRect(); // Cache this
+					
 					const edgeSize = this.edgeSize; // size of the edge in pixels
 
 					if (img.id == 'af-zoomed-image') return;
@@ -281,7 +281,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const now = Date.now();
 						if (now - lastMove < 100) return; // Only execute once every 100ms
 						lastMove = now;
-
+						const rect = img.getBoundingClientRect();
 						const x = event.clientX - rect.left;
 						const y = event.clientY - rect.top;
 
