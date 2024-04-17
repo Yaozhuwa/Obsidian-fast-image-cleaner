@@ -11,6 +11,7 @@ export interface AttachFlowSettings {
     resizeInterval: number;
     clickView: boolean;
     adaptiveRatio: number;
+    moveFileMenu: boolean;
     debug: boolean;
 }
 
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: AttachFlowSettings = {
     resizeInterval: 0,
     clickView: false,
     adaptiveRatio: 0.9,
+    moveFileMenu: false,
     debug: false,
 };
 
@@ -53,6 +55,17 @@ export class AttachFlowSettingsTab extends PluginSettingTab {
                     this.plugin.settings.deleteOption = option;
                     this.plugin.saveSettings();
                 });
+            });
+
+        new Setting(containerEl)
+            .setName('Move file to...')
+            .setDesc('Add a "Move to..." option to the right-click menu for attachments')
+            .addToggle((toggle) => {
+                toggle.setValue(this.plugin.settings.moveFileMenu)
+                    .onChange(async (value) => {
+                        this.plugin.settings.moveFileMenu = value;
+                        await this.plugin.saveSettings();
+                    });
             });
 
         new Setting(containerEl).setName('Click to view images').setHeading();

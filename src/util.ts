@@ -9,7 +9,7 @@ import {
 	ElectronWindow, FileSystemAdapterWithInternalApi,
 	loadImageBlob, AppWithDesktopInternalApi, EditorInternalApi
   } from "./helpers"
-import { App, Modal, Setting } from "obsidian";
+import { App, Modal, Setting, FuzzySuggestModal, Vault, FuzzyMatch } from "obsidian";
 
 export let DEBUG:boolean = false;
 const SUCCESS_NOTICE_TIMEOUT = 1800;
@@ -292,6 +292,15 @@ export const handlerCopyFile = async (
 	}
 }
 
+export const handlerMoveFile = async (
+	FileBaseName: string,
+	currentMd: TFile,
+	plugin: AttachFlowPlugin
+) => {
+	const target_file = getFileByBaseName(currentMd, FileBaseName) as TFile;
+	new moveFileToFolderSuggester(plugin.app, target_file).open();
+}
+
 /**
  *
  * @param file target deleted file
@@ -460,7 +469,7 @@ export class RenameModal extends Modal {
 				.onChange((value) => {
 					this.result = `${this.folder}${value}.${this.filetype}`;
 				})
-			);
+		);
 
 		// 使 DOM 有足够的时间渲染表单元素
 		setTimeout(() => {
@@ -500,9 +509,63 @@ export class RenameModal extends Modal {
 			this.onSubmit(this.result);
 		});
 	}
-  
+
 	onClose() {
-	  let { contentEl } = this;
-	  contentEl.empty();
+		let { contentEl } = this;
+		contentEl.empty();
 	}
-  }
+}
+
+
+
+class moveFileToFolderSuggester extends FuzzySuggestModal<string> {
+	private folderList: Set<string>;
+	target_file: TFile;
+
+	constructor(app: App, file: TFile) {
+		super(app);
+		this.folderList = this.getAllFolders(this.app.vault);
+		this.target_file = file;
+	}
+
+	getAllFolders(vault: Vault): Set<string> {
+		const folders = new Set<string>();
+		vault.getAllLoadedFiles().forEach(file => {
+			// 判断是否是 TFolder 类型
+			if (file instanceof TFolder) {
+				folders.add(file.path);
+			}
+		});
+		return folders;
+	}
+
+	getItems(): string[] {
+		return Array.from(this.folderList).sort();
+	}
+
+	getItemText(item: string): string {
+		return item;
+	}
+
+	async onChooseItem(item: string): Promise<void> {
+		if (this.target_file.parent?.path === item) {
+			new Notice("The file is already in the folder!", 3000);
+			return;
+		}
+		let choosed_folder = item.endsWith('/') ? item : item + '/';
+		let new_path = choosed_folder + this.target_file.name;
+		print(new_path)
+		app.vault.adapter.exists(new_path)
+		.then((exists) => {
+			if(exists) {
+				new Notice(`Fail to move for there alreay exist file ${new_path}`);
+			} else {
+				this.app.fileManager.renameFile(this.target_file, `${new_path}`);
+			}
+		});
+	}
+
+	renderSuggestion(item: FuzzyMatch<string>, el: HTMLElement): void {
+        el.innerText = item.item;
+    }
+}

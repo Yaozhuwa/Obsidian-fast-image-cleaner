@@ -232,7 +232,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const onMouseUp = (event: MouseEvent) => {
 							setTimeout(allowOtherEvent, 100);
 							event.preventDefault()
-							img.classList.remove('image-in-drag-resize', 'image-ready-resize')
+							img.classList.remove('image-in-drag-resize', )
 							document.removeEventListener("mousemove", onMouseMove);
 							document.removeEventListener("mouseup", onMouseUp);
 
@@ -444,6 +444,21 @@ export default class AttachFlowPlugin extends Plugin {
 					}
 				})
 		)
+
+		if (this.settings.moveFileMenu){
+			menu.addItem((item: MenuItem) =>
+				item
+					.setIcon("folder-tree")
+					.setTitle("Move file to...")
+					.onClick(async () => {
+						try {
+							Util.handlerMoveFile(FileBaseName, currentMd, this);
+						} catch {
+							new Notice("Error, could not Move the file!");
+						}
+					})
+			);
+		}
 
 		menu.addItem((item: MenuItem) =>
 			item
@@ -666,6 +681,7 @@ export default class AttachFlowPlugin extends Plugin {
 		let offset = -163;
 		let linux_offset = -138;
 		offset = process.platform == 'linux' ? linux_offset : offset;
+		if (this.settings.moveFileMenu) offset -= 25;
 
 		if (inTable && !inPreview) {
 			menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
