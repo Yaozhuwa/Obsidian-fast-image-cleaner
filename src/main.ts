@@ -232,7 +232,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const onMouseUp = (event: MouseEvent) => {
 							setTimeout(allowOtherEvent, 100);
 							event.preventDefault()
-							img.classList.remove('image-in-drag-resize', 'image-ready-resize', 'image-ready-click-view')
+							img.classList.remove('image-in-drag-resize', 'image-ready-click-view')
 							document.removeEventListener("mousemove", onMouseMove);
 							document.removeEventListener("mouseup", onMouseUp);
 
