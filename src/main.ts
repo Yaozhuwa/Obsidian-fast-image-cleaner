@@ -23,6 +23,7 @@ export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
 	edgeSize: number;
 	observer: MutationObserver;
+	watcher: VideoDivWidthChangeWatcher;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
@@ -88,11 +89,22 @@ export default class AttachFlowPlugin extends Plugin {
 
 		this.initMutationObserver();
 
+		// Delay the initialization of the watcher
+        setTimeout(() => {
+            this.watcher = new VideoDivWidthChangeWatcher();
+        }, 1000); 
+
+		this.registerEvent(this.app.workspace.on("file-open", (file) => {
+			this.watcher?.disconnect();
+			this.watcher = new VideoDivWidthChangeWatcher();
+		}));
+
 		setDebug(this.settings.debug);
 	}
 
 	onunload() {
 		this.observer.disconnect();
+		this.watcher.disconnect();
 		console.log("AttachFlow plugin unloaded...");
 	}
 
@@ -211,7 +223,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// print("img.parent", img.parentElement?img.parentElement:'NULL')
 
 					// 定义事件处理函数
-					let preventEvent = function(event: MouseEvent) {
+					let preventEvent = function (event: MouseEvent) {
 						event.preventDefault();
 						event.stopPropagation();
 					};
@@ -237,7 +249,7 @@ export default class AttachFlowPlugin extends Plugin {
 							// img.addEventListener('mouseover', preventEvent);
 							// img.addEventListener('mouseout', preventEvent);
 							const currentX = event.clientX;
-							lastUpdate = currentX - lastUpdateX == 0?lastUpdate:currentX - lastUpdateX;
+							lastUpdate = currentX - lastUpdateX == 0 ? lastUpdate : currentX - lastUpdateX;
 							// print('lastUpdate', lastUpdate)
 							let newWidth = startWidth + (currentX - startX);
 							const aspectRatio = startWidth / startHeight;
@@ -279,14 +291,14 @@ export default class AttachFlowPlugin extends Plugin {
 							// 遵循最小刻度
 							if (this.settings.resizeInterval > 1) {
 								let resize_interval = this.settings.resizeInterval;
-								let width_offset = lastUpdate>0?resize_interval:0;
-								if (updatedWidth%resize_interval!=0) {
-									updatedWidth = Math.floor(updatedWidth/resize_interval)*resize_interval+width_offset;
+								let width_offset = lastUpdate > 0 ? resize_interval : 0;
+								if (updatedWidth % resize_interval != 0) {
+									updatedWidth = Math.floor(updatedWidth / resize_interval) * resize_interval + width_offset;
 								}
 								img.style.width = `${updatedWidth}px`;
 								this.updateImageLinkWithNewSize(img, target_pos, updatedWidth, 0);
 							}
-							
+
 						};
 						document.addEventListener("mousemove", onMouseMove);
 						document.addEventListener("mouseup", onMouseUp);
@@ -306,7 +318,7 @@ export default class AttachFlowPlugin extends Plugin {
 					// if (inPreview) return;
 
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
-					
+
 					const edgeSize = this.edgeSize; // size of the edge in pixels
 
 					if (img.id == 'af-zoomed-image') return;
@@ -326,7 +338,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const y = event.clientY - rect.top;
 
 						if ((x >= rect.width - edgeSize || x <= edgeSize) || (y >= rect.height - edgeSize || y <= edgeSize)) {
-							if (this.settings.dragResize && !inPreview){
+							if (this.settings.dragResize && !inPreview) {
 								img.classList.remove('image-ready-click-view')
 								img.classList.add('image-ready-resize');
 							}
@@ -339,7 +351,7 @@ export default class AttachFlowPlugin extends Plugin {
 							img.classList.add('image-ready-click-view')
 							img.classList.remove('image-ready-resize');
 						}
-						else{
+						else {
 							img.classList.remove('image-ready-click-view', 'image-ready-resize')
 						}
 					};
@@ -361,7 +373,7 @@ export default class AttachFlowPlugin extends Plugin {
 					if (event.buttons != 0) return;
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 
-					if (this.settings.clickView || this.settings.dragResize){
+					if (this.settings.clickView || this.settings.dragResize) {
 						img.classList.remove('image-ready-click-view', 'image-ready-resize')
 					}
 				}
@@ -378,7 +390,7 @@ export default class AttachFlowPlugin extends Plugin {
 				this.externalImageContextMenuCall.bind(this)
 			)
 		);
-		
+
 	}
 
 	async loadSettings() {
@@ -409,7 +421,7 @@ export default class AttachFlowPlugin extends Plugin {
 		);
 	}
 
-	updateImageLinkWithNewSize = (img: HTMLImageElement|HTMLVideoElement, target_pos: number, newWidth: number, newHeight: number) => {
+	updateImageLinkWithNewSize = (img: HTMLImageElement | HTMLVideoElement, target_pos: number, newWidth: number, newHeight: number) => {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		const inTable: boolean = img.closest('table') != null;
 		const inCallout: boolean = img.closest('.callout') != null;
@@ -485,7 +497,7 @@ export default class AttachFlowPlugin extends Plugin {
 				})
 		)
 
-		if (this.settings.moveFileMenu){
+		if (this.settings.moveFileMenu) {
 			menu.addItem((item: MenuItem) =>
 				item
 					.setIcon("folder-tree")
@@ -1032,7 +1044,7 @@ function matchLineWithExternalLink(line_text: string, link: string, alt_text: st
 			}
 			let link_text = matched_link.substring(alt_text_match[0].length + 2, matched_link.length - 1)
 			let newExternalLink = intable ? `![${pure_alt}\\|${new_width}](${link_text})` : `![${pure_alt}|${new_width}](${link_text})`;
-			
+
 			result.push({
 				old_link: matched_link,
 				new_link: newExternalLink,
@@ -1050,37 +1062,37 @@ function matchLineWithExternalLink(line_text: string, link: string, alt_text: st
 
 // 创建遮罩元素
 function createZoomMask(): HTMLDivElement {
-    const mask = document.createElement('div');
-    mask.id = 'af-mask';
-    mask.style.position = 'fixed';
-    mask.style.top = '0';
-    mask.style.left = '0';
-    mask.style.width = '100%';
-    mask.style.height = '100%';
-    mask.style.background = 'rgba(0, 0, 0, 0.5)';
-    mask.style.zIndex = '9998';
-    document.body.appendChild(mask);
-    return mask;
+	const mask = document.createElement('div');
+	mask.id = 'af-mask';
+	mask.style.position = 'fixed';
+	mask.style.top = '0';
+	mask.style.left = '0';
+	mask.style.width = '100%';
+	mask.style.height = '100%';
+	mask.style.background = 'rgba(0, 0, 0, 0.5)';
+	mask.style.zIndex = '9998';
+	document.body.appendChild(mask);
+	return mask;
 }
 
 // 创建放大的图像元素
-async function createZoomedImage(src: string, adaptive_ratio: number): Promise<{zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number}> {
-    const zoomedImage = document.createElement('img');
-    zoomedImage.id = 'af-zoomed-image';
-    zoomedImage.src = src;
-    zoomedImage.style.position = 'fixed';
-    zoomedImage.style.zIndex = '9999';
-    zoomedImage.style.top = '50%';
-    zoomedImage.style.left = '50%';
-    zoomedImage.style.transform = 'translate(-50%, -50%)';
-    document.body.appendChild(zoomedImage);
+async function createZoomedImage(src: string, adaptive_ratio: number): Promise<{ zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number }> {
+	const zoomedImage = document.createElement('img');
+	zoomedImage.id = 'af-zoomed-image';
+	zoomedImage.src = src;
+	zoomedImage.style.position = 'fixed';
+	zoomedImage.style.zIndex = '9999';
+	zoomedImage.style.top = '50%';
+	zoomedImage.style.left = '50%';
+	zoomedImage.style.transform = 'translate(-50%, -50%)';
+	document.body.appendChild(zoomedImage);
 
-    let originalWidth = zoomedImage.naturalWidth;
+	let originalWidth = zoomedImage.naturalWidth;
 	let originalHeight = zoomedImage.naturalHeight;
 
 	adaptivelyDisplayImage(zoomedImage, originalWidth, originalHeight, adaptive_ratio);
 
-    return {
+	return {
 		zoomedImage,
 		originalWidth,
 		originalHeight
@@ -1088,7 +1100,7 @@ async function createZoomedImage(src: string, adaptive_ratio: number): Promise<{
 }
 
 // 创建百分比指示元素
-function createZoomScaleDiv(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number): HTMLDivElement {
+function createZoomScaleDiv(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number): HTMLDivElement {
 	const scaleDiv = document.createElement('div');
 	scaleDiv.id = 'af-scale-div';
 	scaleDiv.classList.add('af-scale-div');
@@ -1098,7 +1110,7 @@ function createZoomScaleDiv(zoomedImage: HTMLImageElement, originalWidth: number
 	return scaleDiv;
 }
 
-function updateZoomScaleDiv(scaleDiv: HTMLDivElement, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number){
+function updateZoomScaleDiv(scaleDiv: HTMLDivElement, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number) {
 	// 获取当前的宽度和高度
 	const width = zoomedImage.offsetWidth;
 	const height = zoomedImage.offsetHeight;
@@ -1108,33 +1120,33 @@ function updateZoomScaleDiv(scaleDiv: HTMLDivElement, zoomedImage: HTMLImageElem
 
 // 滚轮事件处理器
 function handleZoomMouseWheel(e: WheelEvent, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, scaleDiv: HTMLDivElement) {
-    e.preventDefault();
-    const mouseX = e.clientX;
-    const mouseY = e.clientY;
-    const scale = e.deltaY > 0 ? 0.95 : 1.05;
-    const newWidth = scale * zoomedImage.offsetWidth;
-    const newHeight = scale * zoomedImage.offsetHeight;
-    const newLeft = mouseX - (mouseX - zoomedImage.offsetLeft) * scale;
-    const newTop = mouseY - (mouseY - zoomedImage.offsetTop) * scale;
-    zoomedImage.style.width = `${newWidth}px`;
-    zoomedImage.style.height = `${newHeight}px`;
-    zoomedImage.style.left = `${newLeft}px`;
-    zoomedImage.style.top = `${newTop}px`;
-    updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
+	e.preventDefault();
+	const mouseX = e.clientX;
+	const mouseY = e.clientY;
+	const scale = e.deltaY > 0 ? 0.95 : 1.05;
+	const newWidth = scale * zoomedImage.offsetWidth;
+	const newHeight = scale * zoomedImage.offsetHeight;
+	const newLeft = mouseX - (mouseX - zoomedImage.offsetLeft) * scale;
+	const newTop = mouseY - (mouseY - zoomedImage.offsetTop) * scale;
+	zoomedImage.style.width = `${newWidth}px`;
+	zoomedImage.style.height = `${newHeight}px`;
+	zoomedImage.style.left = `${newLeft}px`;
+	zoomedImage.style.top = `${newTop}px`;
+	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
 }
 
 // 鼠标右键点击事件处理器
-function handleZoomContextMenu(e: MouseEvent,zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, scaleDiv: HTMLDivElement) {
-    e.preventDefault();
-    zoomedImage.style.width = `${originalWidth}px`;
-    zoomedImage.style.height = `${originalHeight}px`;
-    zoomedImage.style.left = `50%`;
-    zoomedImage.style.top = `50%`;
+function handleZoomContextMenu(e: MouseEvent, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, scaleDiv: HTMLDivElement) {
+	e.preventDefault();
+	zoomedImage.style.width = `${originalWidth}px`;
+	zoomedImage.style.height = `${originalHeight}px`;
+	zoomedImage.style.left = `50%`;
+	zoomedImage.style.top = `50%`;
 	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
 }
 
 
-function adaptivelyDisplayImage(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, adaptive_ratio:number) {
+function adaptivelyDisplayImage(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight: number, adaptive_ratio: number) {
 	zoomedImage.style.left = `50%`;
 	zoomedImage.style.top = `50%`;
 	// 如果图片的尺寸大于屏幕尺寸，使其大小为屏幕尺寸的 adaptive_ratio
@@ -1151,14 +1163,14 @@ function adaptivelyDisplayImage(zoomedImage: HTMLImageElement, originalWidth: nu
 			zoomedImage.style.height = `${screenHeight * screenRatio}px`;
 			zoomedImage.style.width = 'auto';
 		}
-	}else{
+	} else {
 		zoomedImage.style.width = `${originalWidth}px`;
 		zoomedImage.style.height = `${originalHeight}px`;
 	}
 }
 
-function handleZoomDragStart(e: MouseEvent,zoomedImage: HTMLImageElement) {
-    // 事件处理的代码 ...
+function handleZoomDragStart(e: MouseEvent, zoomedImage: HTMLImageElement) {
+	// 事件处理的代码 ...
 	// 阻止浏览器默认的拖动事件
 	e.preventDefault();
 
@@ -1206,4 +1218,49 @@ function getExcalidrawBaseName(target: HTMLImageElement): string {
 		file_base_name.substring(0, file_base_name.length - 3) :
 		file_base_name;
 	return file_base_name;
+}
+
+
+class VideoDivWidthChangeWatcher {
+	private observer: MutationObserver;
+
+	// 初始化并开始监听
+	constructor() {
+		this.observer = new MutationObserver(this.observerCallback);
+
+		const divs = document.querySelectorAll(".internal-embed.media-embed.video-embed.is-loaded");
+		divs.forEach(div => this.observeDiv(div));
+	}
+
+	// 观察单个 div 元素的函数
+	private observeDiv(div: Element) {
+		this.observer.observe(div, {
+			attributes: true,
+			attributeFilter: ['width'],
+		});
+	}
+
+	// 当 div 元素的宽度改变时调用的回调函数
+	private observerCallback(mutationsList: MutationRecord[]) {
+		for (const mutation of mutationsList) {
+			if (mutation.attributeName === 'width') {
+				// console.log('width attribute modified on', mutation.target);
+				// 在这里进行相应的操作，如调整元素样式等
+				// 将父 div 元素的width同步到子video元素的style.width上
+				const changedElement = mutation.target as HTMLElement;
+				const videoElement = changedElement.querySelector("video");
+				if (!videoElement) return;
+				const divWidth = changedElement.getAttribute('width');
+				if (divWidth) {
+					videoElement.style.width = divWidth + "px";
+				}else {
+					videoElement.style.width = "";  // 如果 width 属性被移除，也移除 video.style.width
+				}
+			}
+		}
+	}
+
+	public disconnect() {
+		this.observer.disconnect();
+	}
 }
