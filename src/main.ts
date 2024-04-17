@@ -898,7 +898,7 @@ function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 function matchLineWithInternalLink(line_text: string, target_name: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
-	let regMdLink = /\!\[[^\[\]]*?\]\([^\[\]\{\}']*\)/g;
+	let regMdLink = /\!\[[^\[\]]*?\]\(\s*[^\[\]\{\}']*\s*\)/g;
 	const target_name_mdlink = target_name.replace(/ /g, '%20');
 	if (!line_text.includes(target_name) && !line_text.includes(target_name_mdlink)) return [];
 
@@ -974,7 +974,7 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 
 function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let result: MatchedLinkInLine[] = []
-	let regMdLink = /\!\[[^\[\]]*?\]\([^\[\]\{\}]*\)/g;
+	let regMdLink = /\!\[[^\[\]]*?\]\(\s*[^\[\]\{\}']*\s*\)/g;
 	if (!line_text.includes(link)) return [];
 	while (true) {
 		let match = regMdLink.exec(line_text);

@@ -381,7 +381,8 @@ function copyFileToClipboardCMD(filePath: string) {
 const findLinkInLine = (file_name: string, line_text: string) =>{
 	const file_name_mdlink = file_name.replace(/ /g, '%20');
 	let regWikiLink = /\!\[\[[^\[\]]*?\]\]/g;
-    let regMdLink = /\!\[[^\[\]]*?\]\([^\[\]\{\}]*\)/g;
+    let regMdLink = /\!\[[^\[\]]*?\]\(\s*[^\[\]\{\}']*\s*\)/g;
+	
 	print('target_name (WIKI/MD):', file_name, file_name_mdlink)
 
 	// console.log('search in line_text:', line_text)
