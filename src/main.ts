@@ -425,13 +425,9 @@ export default class AttachFlowPlugin extends Plugin {
 
 		this.registerEscapeButton(menu);
 
-		let offset = inPreview ? 0 : -138;
-		if (inTable) {
-			menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
-		}
-		else {
-			menu.showAtPosition({ x: event.pageX, y: event.pageY });
-		}
+		let offset = 0;
+		if (!inPreview && (inTable || inCallout)) offset = -138;
+		menu.showAtPosition({ x: event.pageX, y: event.pageY + offset });
 
 		this.app.workspace.trigger("AttachFlow:contextmenu", menu);
 	}
