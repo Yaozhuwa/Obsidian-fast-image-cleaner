@@ -974,7 +974,7 @@ function matchLineWithInternalLink(line_text: string, target_name: string, new_w
 
 function matchLineWithExternalLink(line_text: string, link: string, alt_text: string, new_width: number, intable: boolean): MatchedLinkInLine[] {
 	let result: MatchedLinkInLine[] = []
-	let regMdLink = /\!\[[^\[\]]*?\]\([^\s\)\(\[\]\{\}']*\)/g;
+	let regMdLink = /\!\[[^\[\]]*?\]\([^\)\(\[\]\{\}]*\)/g;
 	if (!line_text.includes(link)) return [];
 	while (true) {
 		let match = regMdLink.exec(line_text);
