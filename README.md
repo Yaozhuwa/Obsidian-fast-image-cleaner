@@ -1,6 +1,10 @@
 # AttachFlow
+<div align="center">
+
+![GitHub Downloads (specific asset, all releases)|150](https://img.shields.io/github/downloads/Yaozhuwa/AttachFlow/main.js) ![GitHub Downloads (specific asset, latest release)](https://img.shields.io/github/downloads/Yaozhuwa/AttachFlow/latest/main.js)
 
 【[中文](./ZH.md) / EN】
+</div>
 
 This is a plugin for [Obsidian](https://obsidian.md).
 
