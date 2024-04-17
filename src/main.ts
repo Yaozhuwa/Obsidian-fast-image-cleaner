@@ -96,7 +96,9 @@ export default class AttachFlowPlugin extends Plugin {
 
 		this.registerEvent(this.app.workspace.on("file-open", (file) => {
 			this.watcher?.disconnect();
-			this.watcher = new VideoDivWidthChangeWatcher();
+			setTimeout(() => {
+				this.watcher = new VideoDivWidthChangeWatcher();
+			}, 1000); 
 		}));
 
 		setDebug(this.settings.debug);
