@@ -1,3 +1,7 @@
+- AttachFlow v0.4.3 2024-04-17
+  - 增加附件右键菜单 'Move file to...'
+    - 需要在插件设置中打开
+    - 移动附件后会自动更新所有文档中的相关链接
 - AttachFlow v0.4.2 2024-04-17
   - add adaptivelyDisplayImage setting，可以设置自适应显示超过屏幕的大图的相对屏幕大小的显示百分比
   - 更新设置界面的描述
