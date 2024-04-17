@@ -210,10 +210,7 @@ export default class AttachFlowPlugin extends Plugin {
 
 							// Apply the new dimensions to the image or video
 							if (img instanceof HTMLImageElement) {
-								img.style.border = 'solid';
-								img.style.borderWidth = '2px';
-								img.style.borderColor = 'blue';
-								img.style.boxSizing = 'border-box';
+								img.classList.add('image-in-drag-resize')
 								img.style.width = `${newWidth}px`;
 								// img.style.height = `${newHeight}px`;
 							}
@@ -235,9 +232,7 @@ export default class AttachFlowPlugin extends Plugin {
 						const onMouseUp = (event: MouseEvent) => {
 							setTimeout(allowOtherEvent, 100);
 							event.preventDefault()
-							img.style.borderStyle = 'none'
-							img.style.outline = 'none';
-							img.style.cursor = 'default';
+							img.classList.remove('image-in-drag-resize', 'image-ready-resize')
 							document.removeEventListener("mousemove", onMouseMove);
 							document.removeEventListener("mouseup", onMouseUp);
 
@@ -292,24 +287,20 @@ export default class AttachFlowPlugin extends Plugin {
 
 						if ((x >= rect.width - edgeSize || x <= edgeSize) || (y >= rect.height - edgeSize || y <= edgeSize)) {
 							if (this.settings.dragResize && !inPreview){
-								img.style.cursor = 'nwse-resize';
-								img.style.outline = 'solid';
-								img.style.outlineWidth = '6px';
-								img.style.outlineColor = '#dfb0f283';
+								img.classList.remove('image-ready-click-view')
+								img.classList.add('image-ready-resize');
 							}
-
-							if (inPreview && this.settings.clickView && x > rect.width / 2) {
-								img.style.cursor = 'zoom-in';
-								img.style.outline = 'none';
+							else if (inPreview && this.settings.clickView && x > rect.width / 2) {
+								img.classList.add('image-ready-click-view')
+								img.classList.remove('image-ready-resize');
 							}
 						}
 						else if (x > rect.width / 2 && this.settings.clickView) {
-							img.style.cursor = 'zoom-in';
-							img.style.outline = 'none';
+							img.classList.add('image-ready-click-view')
+							img.classList.remove('image-ready-resize');
 						}
-						else if (this.settings.clickView || this.settings.dragResize){
-							img.style.cursor = 'default';
-							img.style.outline = 'none';
+						else{
+							img.classList.remove('image-ready-click-view', 'image-ready-resize')
 						}
 					};
 					this.registerDomEvent(img, 'mousemove', mouseOverHandler);
@@ -331,9 +322,7 @@ export default class AttachFlowPlugin extends Plugin {
 					const img = event.target as HTMLImageElement | HTMLVideoElement;
 
 					if (this.settings.clickView || this.settings.dragResize){
-						img.style.borderStyle = 'none';
-						img.style.cursor = 'default';
-						img.style.outline = 'none';
+						img.classList.remove('image-ready-click-view', 'image-ready-resize')
 					}
 				}
 			)
@@ -413,7 +402,7 @@ export default class AttachFlowPlugin extends Plugin {
 		if (event.button != 2) return;
 		event.preventDefault();
 		this.app.workspace.getActiveViewOfType(MarkdownView)?.editor?.blur();
-		img.style.cursor = 'default';
+		img.classList.remove('image-ready-click-view', 'image-ready-resize');
 		const menu = new Menu();
 		const inPreview = this.app.workspace.getActiveViewOfType(MarkdownView)?.getMode() == "preview";
 		if (inPreview) {
@@ -617,7 +606,8 @@ export default class AttachFlowPlugin extends Plugin {
 
 			return;
 		}
-		target.style.cursor = 'default';
+
+		target.classList.remove('image-ready-click-view', 'image-ready-resize');
 
 		if (isExcalidraw) {
 			target_name = getExcalidrawBaseName(target as HTMLImageElement);
@@ -1043,20 +1033,13 @@ async function createZoomedImage(src: string, adaptive_ratio: number): Promise<{
 
 // 创建百分比指示元素
 function createZoomScaleDiv(zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number): HTMLDivElement {
-    const scaleDiv = document.createElement('div');
-    scaleDiv.id = 'af-scale-div';
-    scaleDiv.style.position = 'fixed';
-    scaleDiv.style.zIndex = '10000';
-    scaleDiv.style.bottom = '0';
-    scaleDiv.style.left = '50%';
-    scaleDiv.style.transform = 'translateX(-50%)';
-    scaleDiv.style.color = '#fff';
-    scaleDiv.style.fontSize = '20px';
-    scaleDiv.style.background = 'rgba(0, 0, 0, 0.5)';
-    scaleDiv.style.padding = '5px';
+	const scaleDiv = document.createElement('div');
+	scaleDiv.id = 'af-scale-div';
+	scaleDiv.classList.add('af-scale-div');
+	scaleDiv.style.zIndex = '10000';
 	updateZoomScaleDiv(scaleDiv, zoomedImage, originalWidth, originalHeight);
-    document.body.appendChild(scaleDiv);
-    return scaleDiv;
+	document.body.appendChild(scaleDiv);
+	return scaleDiv;
 }
 
 function updateZoomScaleDiv(scaleDiv: HTMLDivElement, zoomedImage: HTMLImageElement, originalWidth: number, originalHeight:number){

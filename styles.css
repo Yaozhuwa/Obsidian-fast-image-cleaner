@@ -13,3 +13,34 @@ button.mod-warning {
 	background-color: var(--background-modifier-error);
 	color: var(--text-on-accent);
 }
+
+.af-scale-div {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+	font-family: var(--default-font);
+    font-size: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 5px;
+}
+
+.image-ready-resize {
+    cursor: nwse-resize;
+    outline: 6px solid #dfb0f283;
+}
+
+.image-ready-click-view {
+    cursor: zoom-in;
+}
+
+.image-in-drag-resize {
+	border: 2px solid blue;
+    box-sizing: border-box;
+}
+
+/* 点击查看的大图 */
+#af-zoomed-image {
+    cursor: move;
+}
