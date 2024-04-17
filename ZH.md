@@ -9,16 +9,56 @@
 
 这是一个 [Obsidian](https://obsidian.md) 的插件。
 
-利用这个插件，您可以在 [Obsidian](https://obsidian.md) 实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）
+利用这个插件，您可以在 [Obsidian](https://obsidian.md) 实时编辑或阅读模式下，通过简单的**右键菜单**，轻松管理文档中的附件（图片、视频，录音，文件...）。此外，插件还针对文档中的图片，提供了丝滑的拖拽调节图片大小和点击查看大图的功能。
 
-## 演示
+## 插件主要功能
 (1) 便捷的右键菜单
 
 <img src="assets/AttachFlow-ContextMenu.gif" width="600">
 
+对于本地图片/附件，右键菜单包含：
+- 拷贝文件（调用系统API，可拷贝任意文件/图片，粘贴到任意位置/APP，支持 MacOS、Windows）
+- 默认应用打开
+- 在 Finder/资源管理器 显示
+- 在文件列表中显示
+- 默认应用打开
+- 附件重命名（only in Live Preview Mode）
+- 移动文件到文件夹（only in Live Preview Mode）
+- 删除链接及对应附件（only in Live Preview Mode）
+
+其中，文件重命名和移动文件的操作会自动更新对应文件的所有链接。
+
+对于网络图片，右键菜单包含：
+- 拷贝图片到剪贴板
+- 拷贝链接
+- 拷贝 Markdown 链接
+- 在外部浏览器中打开
+- 删除图片链接（only in Live Preview Mode）
+
+
 (2) 拖拽调整图片大小
 
 <img src="assets/AttachFlow-GragResize.gif" width="600">
+
+功能细节：
+- 在图像边缘按住左键可以拖拽调节图片大小
+- 支持 Markdown 链接和 WIKI 链接及 Obsidian 的三种内部链接类型
+  - 支持 Excalidraw、PDF++ 嵌入的矩形区域调节大小。
+  - 支持表格内、Callout内图片调节大小。
+- 可以设置最小调节间隔（默认为0），拖拽调节大小后，会自动对齐到最近刻度，如设置为 10，可以让调节后的图片大小自动对齐到整十的大小。
+
+(3) 点击查看大图
+
+<img src="assets/click-view-demo.gif" width="600">
+
+功能描述：
+- 点击图片右半区域可以查看大图
+- 默认显示100%图片大小，若原图大小超过屏幕，则按屏幕90%大小显示（该比例可在设置中修改）
+- 按住左键可以拖拽图片
+- 鼠标滚轮可以调节图片大小，以鼠标位置为中心点缩放
+- 右键点击图片快速将图片显示为100%大小
+- 双击图片快速显示图片的初始大小（100%大小或者自适应屏幕显示）
+- 点击图片外区域/ESC 退出查看
 
 ## 删除文件功能详细介绍
 
@@ -105,3 +145,9 @@
 - https://github.com/martinniee/Obsidian-fast-image-cleaner
 - https://github.com/NomarCub/obsidian-copy-url-in-preview
 - https://github.com/xRyul/obsidian-image-converter
+
+
+## 赞助
+如果你喜欢这个插件，并对我表示感谢，你可以在这里请我喝一杯奶茶！
+
+<img src="assets/donate.png" width="400">

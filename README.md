@@ -8,17 +8,56 @@
 
 This is a plugin for [Obsidian](https://obsidian.md).
 
-This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive **right-click menu**, you can efficiently handle resources in both LIVE and READ modes.
+This nifty plugin enables seamless management of attachments and referenced links directly from your documents. Taking advantage of an intuitive **right-click menu**, you can efficiently handle resources in both LIVE and READ modes. Additionally, the plugin offers intuitive resizing and click-to-expand features for images in the document.
 
-## Showcase
+## Showcase / Feature
 
 (1) Handy Context Menu
 
 <img src="assets/AttachFlow-ContextMenu.gif" width="600">
 
+For local images/attachments, the right-click menu includes:
+- Copy File (utilizes system API, allowing any file/image to be copied and pasted to any location/app, compatible with MacOS and Windows)
+- Open with Default Application
+- Show in Finder/File Explorer
+- Show in File List
+- Open with Default Application
+- Rename Attachment (only in Live Preview Mode)
+- Move File to Folder (only in Live Preview Mode)
+- Delete Link and Corresponding Attachment (only in Live Preview Mode)
+
+Aside from these, any renaming or moving of files will automatically update all corresponding file links.
+
+For online images, the right-click menu includes:
+- Copy Image to Clipboard
+- Copy Link
+- Copy Markdown Link
+- Open in External Browser
+- Remove Image Link (only in Live Preview Mode)
+
 (2) Drag to Resize Images
 
 <img src="assets/AttachFlow-GragResize.gif" width="600">
+
+Functional details:
+- Holding down the left mouse button on the edge of an image allows for drag-to-resize
+- Supports Markdown links, WIKI links, and all three types of internal links in Obsidian
+- Compatibility with Excalidraw plugin and PDF++ plugin's embeds for resizable rectangular areas.  
+- Enables resizing of images within tables and Callouts.
+- Allows setting a minimum adjustment interval (default is 0); following a resize, the dimensions automatically align to the nearest marking. For example, if set to 10, the adjusted image size automatically aligns to the nearest multiple of ten.
+
+(3) Click to View Images
+
+<img src="assets/click-view-demo.gif" width="600">
+
+Feature Description:
+- Clicking on the right half of an image allows for viewing the image in larger size
+- Displays at 100% of the image's size by default; if the original image size exceeds the screen size, it will display at 90% of the screen size (this ratio can be adjusted in the settings)
+- Holding down the left mouse button enables drag-and-move of the image
+- Using the mouse scroll wheel allows for resizing the image, with the scaling centered on the mouse position
+Right-clicking the image quickly resets it to 100% of its size
+- Double-clicking an image quickly resets it to its original size (either 100% or fit-to-screen)
+- Clicking outside of the image or pressing ESC exits the view mode
 
 ## Details for clear file feature
 
@@ -106,3 +145,11 @@ References for these projects can be found at:
 - https://github.com/martinniee/Obsidian-fast-image-cleaner
 - https://github.com/NomarCub/obsidian-copy-url-in-preview
 - https://github.com/xRyul/obsidian-image-converter
+
+
+## Support
+If you like this plugin and want to say thanks, you can buy me a coffee here!
+
+<img src="assets/donate.png" width="400">
+
+<a href="https://www.buymeacoffee.com/yaozhuwa"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=yaozhuwa&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
