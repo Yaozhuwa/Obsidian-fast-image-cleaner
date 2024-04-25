@@ -22,8 +22,7 @@ interface MatchedLinkInLine {
 export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
 	edgeSize: number;
-	observer: MutationObserver;
-	watcher: VideoDivWidthChangeWatcher;
+	observer: VideoObserver;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
@@ -35,6 +34,12 @@ export default class AttachFlowPlugin extends Plugin {
 		this.registerDocument(document);
 		app.workspace.on("window-open", (workspaceWindow, window) => {
 			this.registerDocument(window.document);
+			const targetNode = window.document.querySelector('.workspace');
+			print("New Window Opened")
+			if(targetNode){
+				this.observer = new VideoObserver(targetNode);
+				print("AttachFlow plugin Start to observe in new window...");
+			}
 		});
 		// add contextmenu on file context
 		this.registerEvent(
@@ -87,67 +92,20 @@ export default class AttachFlowPlugin extends Plugin {
 			}
 		});
 
-		this.initMutationObserver();
-
-		// Delay the initialization of the watcher
-        setTimeout(() => {
-            this.watcher = new VideoDivWidthChangeWatcher();
-        }, 1000); 
-
-		this.registerEvent(this.app.workspace.on("file-open", (file) => {
-			this.watcher?.disconnect();
-			setTimeout(() => {
-				this.watcher = new VideoDivWidthChangeWatcher();
-			}, 1000); 
-		}));
-
 		setDebug(this.settings.debug);
+		
+		const targetNode = document.querySelector('.workspace');
+		if(targetNode){
+			this.observer = new VideoObserver(targetNode);
+			print("AttachFlow plugin Start to observe...");
+		}
 	}
 
 	onunload() {
 		this.observer.disconnect();
-		this.watcher.disconnect();
 		console.log("AttachFlow plugin unloaded...");
 	}
 
-	initMutationObserver() {
-		// Select the node that will be observed for mutations
-		const targetNode = document.querySelector('.workspace');
-
-		if (!targetNode) return;
-
-		// Options for the observer (which mutations to observe)
-		const config = { childList: true, subtree: true };
-
-		// Callback function to execute when mutations are observed
-		const callback = (mutationsList: MutationRecord[], observer: MutationObserver) => {
-			// Look through all mutations that just occured
-			for (let mutation of mutationsList) {
-				// If the addedNodes property has one or more nodes
-				if (mutation.addedNodes.length) {
-					mutation.addedNodes.forEach(node => {
-						if (!(node instanceof Element)) return;
-
-						const videos = node.querySelectorAll('video');
-						videos.forEach(video => {
-							const parentDiv = video.closest('.internal-embed.media-embed.video-embed.is-loaded');
-							if (parentDiv && parentDiv.getAttribute('width')) {
-								video.style.width = parentDiv.getAttribute('width') + 'px';
-							}
-						});
-					});
-				}
-			}
-		};
-
-		// Create an observer instance linked to the callback function
-		this.observer = new MutationObserver(callback);
-
-		// Start observing the target node for the configured mutations
-		this.observer.observe(targetNode, config);
-
-		// Later, you can stop observing with: observer.disconnect();
-	}
 
 	removeZoomedImage() {
 		if (document.getElementById('af-zoomed-image')) {
@@ -1223,46 +1181,66 @@ function getExcalidrawBaseName(target: HTMLImageElement): string {
 }
 
 
-class VideoDivWidthChangeWatcher {
+class VideoObserver {
 	private observer: MutationObserver;
+	private widthObserver: MutationObserver;
 
-	// 初始化并开始监听
-	constructor() {
-		this.observer = new MutationObserver(this.observerCallback);
-
-		const divs = document.querySelectorAll(".internal-embed.media-embed.video-embed.is-loaded");
-		divs.forEach(div => this.observeDiv(div));
+	constructor(target: Node) {
+		this.observerCallback = this.observerCallback.bind(this);
+        this.widthObserverCallback = this.widthObserverCallback.bind(this);
+        
+        this.observer = new MutationObserver(this.observerCallback);
+        this.widthObserver = new MutationObserver(this.widthObserverCallback);
+        this.observer.observe(target, { childList: true, subtree: true });
 	}
 
-	// 观察单个 div 元素的函数
-	private observeDiv(div: Element) {
-		this.observer.observe(div, {
-			attributes: true,
-			attributeFilter: ['width'],
-		});
+	private observerCallback(mutations: MutationRecord[], observer: MutationObserver) {
+		for (let mutation of mutations) {
+            // If the addedNodes property has one or more nodes
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach(node => {
+                    if (!(node instanceof Element)) return;
+
+                    const videos = node.querySelectorAll('video');
+                    videos.forEach(video => {
+                        const parentDiv = video.closest('.internal-embed.media-embed.video-embed.is-loaded');
+                        if (parentDiv) {
+							print("Observed Video Element: ", parentDiv)
+                            if (parentDiv.getAttribute('width')) video.style.width = parentDiv.getAttribute('width') + 'px';
+							this.widthObserver.observe(parentDiv, { attributes: true, attributeFilter: ['width']})
+                        }
+                    });
+                });
+            }
+        }
 	}
 
-	// 当 div 元素的宽度改变时调用的回调函数
-	private observerCallback(mutationsList: MutationRecord[]) {
-		for (const mutation of mutationsList) {
-			if (mutation.attributeName === 'width') {
-				// console.log('width attribute modified on', mutation.target);
-				// 在这里进行相应的操作，如调整元素样式等
-				// 将父 div 元素的width同步到子video元素的style.width上
-				const changedElement = mutation.target as HTMLElement;
-				const videoElement = changedElement.querySelector("video");
-				if (!videoElement) return;
+	private widthObserverCallback(mutations: MutationRecord[], observer: MutationObserver) {
+		for (const mutation of mutations) {
+            if (mutation.type == 'attributes' && mutation.attributeName === 'width') {
+                // console.log('width attribute modified on', mutation.target);
+                // 在这里进行相应的操作，如调整元素样式等
+                // 将父 div 元素的width同步到子video元素的style.width上
+                const changedElement = mutation.target as HTMLElement;
 				const divWidth = changedElement.getAttribute('width');
-				if (divWidth) {
-					videoElement.style.width = divWidth + "px";
-				}else {
-					videoElement.style.width = "";  // 如果 width 属性被移除，也移除 video.style.width
-				}
-			}
-		}
+                const videoElement = changedElement.querySelector("video");
+                if (!videoElement) return;
+                if (divWidth) {
+                    videoElement.style.width = divWidth + "px";
+                }else {
+					// 如果 width 属性被移除，也移除 video.style.width
+                    videoElement.style.width = ""; 
+                }
+            }
+        }
 	}
 
 	public disconnect() {
-		this.observer.disconnect();
+        this.observer.disconnect();
+		this.widthObserver.disconnect();
+    }
+
+	public addTarget(target: Node) {
+		this.observer.observe(target, { childList: true, subtree: true });
 	}
 }
