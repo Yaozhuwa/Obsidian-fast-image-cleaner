@@ -708,7 +708,6 @@ export default class AttachFlowPlugin extends Plugin {
 
 function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement | HTMLVideoElement, target_pos: number, imageName: string, newWidth: number, newHeight: number, inTable: boolean, inCallout: boolean): void {
 	const editor = activeView.editor;
-	//  @ts-expect-error, not typed
 	const editorView = editor.cm as EditorView;
 	let target_line = editorView.state.doc.lineAt(target_pos);
 	// print('target line information: line-content, line-number(1-based), target.ch');
@@ -811,7 +810,6 @@ function updateInternalLink(activeView: MarkdownView, target: HTMLImageElement |
 
 function updateExternalLink(activeView: MarkdownView, target: HTMLImageElement | HTMLVideoElement, target_pos: number, newWidth: number, newHeight: number, inTable: boolean, inCallout: boolean): void {
 	const editor = activeView.editor;
-	//  @ts-expect-error, not typed
 	const editorView = editor.cm as EditorView;
 	let target_line = editorView.state.doc.lineAt(target_pos);
 
