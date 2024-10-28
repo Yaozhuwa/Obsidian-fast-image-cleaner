@@ -23,6 +23,7 @@ export default class AttachFlowPlugin extends Plugin {
 	settings: AttachFlowSettings;
 	edgeSize: number;
 	observer: VideoObserver;
+	extImageWrapper: ExternalImageWrapper;
 
 	async onload() {
 		console.log("AttachFlow plugin loaded...");
@@ -36,8 +37,8 @@ export default class AttachFlowPlugin extends Plugin {
 			this.registerDocument(window.document);
 			const targetNode = window.document.querySelector('.workspace');
 			print("New Window Opened")
-			if(targetNode){
-				this.observer = new VideoObserver(targetNode);
+			if(targetNode && this.observer){
+				this.observer.addTarget(targetNode);
 				print("AttachFlow plugin Start to observe in new window...");
 			}
 		});
@@ -97,12 +98,14 @@ export default class AttachFlowPlugin extends Plugin {
 		const targetNode = document.querySelector('.workspace');
 		if(targetNode){
 			this.observer = new VideoObserver(targetNode);
+			this.extImageWrapper = new ExternalImageWrapper(targetNode);
 			print("AttachFlow plugin Start to observe...");
 		}
 	}
 
 	onunload() {
 		this.observer.disconnect();
+		this.extImageWrapper.disconnect();
 		console.log("AttachFlow plugin unloaded...");
 	}
 
@@ -257,6 +260,7 @@ export default class AttachFlowPlugin extends Plugin {
 								}
 								img.style.width = `${updatedWidth}px`;
 								this.updateImageLinkWithNewSize(img, target_pos, updatedWidth, 0);
+								img.style.removeProperty('width');
 							}
 
 						};
@@ -266,6 +270,7 @@ export default class AttachFlowPlugin extends Plugin {
 				}
 			)
 		)
+
 		this.register(
 			onElement(
 				document,
@@ -316,6 +321,65 @@ export default class AttachFlowPlugin extends Plugin {
 						}
 					};
 					this.registerDomEvent(img, 'mousemove', mouseOverHandler);
+				}
+			)
+		);
+
+
+		this.register(
+			onElement(
+				document,
+				"mouseover",
+				"img",
+				(event: MouseEvent) => {
+					const imgElement = event.target as HTMLImageElement;
+					// let wrapper = imgElement.closest(".af-image-wrapper");
+					// if (!wrapper){
+					// 	const wrapper = document.createElement("div");
+					// 	wrapper.classList.add("af-image-wrapper");
+					// 	wrapper.style.position = "relative";
+					// 	wrapper.style.display = "inline-block";
+
+					// 	const button = document.createElement("button");
+					// 	button.innerText = "删除";
+					// 	button.style.position = "absolute";
+					// 	button.style.top = "0";
+					// 	button.style.right = "0";
+
+					// 	button.addEventListener("click", (event: MouseEvent) => {
+					// 		console.log("删除");
+					// 		event.preventDefault();
+					// 		event.stopPropagation();
+					// 	});
+
+					// 	const imgClone = imgElement.cloneNode(true) as HTMLImageElement;
+					// 	print(imgClone)
+
+					// 	wrapper.appendChild(imgClone);
+					// 	wrapper.appendChild(button);
+			
+					// 	print("imgElement.parentNode", imgElement.parentNode)
+					// 	imgElement.replaceWith(wrapper);
+
+					// 	wrapper.addEventListener("mouseout", () => {
+					// 		// button.remove();
+					// 		wrapper.replaceWith(imgElement);
+					// 	});
+					// }
+					let next = imgElement.nextElementSibling;
+					if (next && next.classList.contains('af-fake-image-container')) return;
+					const container = document.createElement("div");
+					container.classList.add('af-fake-image-container');
+					try {
+						// 你的代码
+						if (next) {
+							console.log("insert before next")
+							next.insertAdjacentElement('beforebegin', container);
+						}
+					} catch (error) {
+						console.error(error);
+					}
+					
 				}
 			)
 		);
@@ -1236,6 +1300,55 @@ class VideoObserver {
 	public disconnect() {
         this.observer.disconnect();
 		this.widthObserver.disconnect();
+    }
+
+	public addTarget(target: Node) {
+		this.observer.observe(target, { childList: true, subtree: true });
+	}
+}
+
+
+class ExternalImageWrapper {
+	private observer: MutationObserver;
+
+	constructor(target: Node) {
+		this.observerCallback = this.observerCallback.bind(this);
+        this.observer = new MutationObserver(this.observerCallback);
+        this.observer.observe(target, { childList: true, subtree: true });
+	}
+
+	private observerCallback(mutations: MutationRecord[], observer: MutationObserver) {
+		for (let mutation of mutations) {
+            // If the addedNodes property has one or more nodes
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach(node => {
+                    if (!(node instanceof Element)) return;
+
+                    const images = node.querySelectorAll('img');
+                    images.forEach(img => {
+						// img.contentEditable = 'true'
+						// print("Observed External Image Element: ", img)
+						// let wrapper = img.closest(".af-image-wrapper");
+						// if (!wrapper){
+						// 	print("Observed External Image Element: ", img)
+						// 	const imgClone = img.cloneNode(true) as HTMLImageElement;
+						// 	const wrapper = document.createElement('div');
+						// 	wrapper.classList.add('af-image-wrapper');
+						// 	wrapper.appendChild(imgClone);
+						// 	// img.replaceWith(wrapper);
+						// 	// img.insertAdjacentElement('afterend', wrapper);
+						// 	img.insertAdjacentHTML('afterend', wrapper.outerHTML);
+						// 	print("Wrapper Element: ", wrapper)
+						// }
+						// img.setAttribute('caption', 'This is a caption'); //给img元素添加一个名为'caption'的属性，并赋值
+                    });
+                });
+            }
+        }
+	}
+
+	public disconnect() {
+        this.observer.disconnect();
     }
 
 	public addTarget(target: Node) {
