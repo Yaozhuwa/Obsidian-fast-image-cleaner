@@ -325,65 +325,6 @@ export default class AttachFlowPlugin extends Plugin {
 			)
 		);
 
-
-		this.register(
-			onElement(
-				document,
-				"mouseover",
-				"img",
-				(event: MouseEvent) => {
-					const imgElement = event.target as HTMLImageElement;
-					// let wrapper = imgElement.closest(".af-image-wrapper");
-					// if (!wrapper){
-					// 	const wrapper = document.createElement("div");
-					// 	wrapper.classList.add("af-image-wrapper");
-					// 	wrapper.style.position = "relative";
-					// 	wrapper.style.display = "inline-block";
-
-					// 	const button = document.createElement("button");
-					// 	button.innerText = "删除";
-					// 	button.style.position = "absolute";
-					// 	button.style.top = "0";
-					// 	button.style.right = "0";
-
-					// 	button.addEventListener("click", (event: MouseEvent) => {
-					// 		console.log("删除");
-					// 		event.preventDefault();
-					// 		event.stopPropagation();
-					// 	});
-
-					// 	const imgClone = imgElement.cloneNode(true) as HTMLImageElement;
-					// 	print(imgClone)
-
-					// 	wrapper.appendChild(imgClone);
-					// 	wrapper.appendChild(button);
-			
-					// 	print("imgElement.parentNode", imgElement.parentNode)
-					// 	imgElement.replaceWith(wrapper);
-
-					// 	wrapper.addEventListener("mouseout", () => {
-					// 		// button.remove();
-					// 		wrapper.replaceWith(imgElement);
-					// 	});
-					// }
-					let next = imgElement.nextElementSibling;
-					if (next && next.classList.contains('af-fake-image-container')) return;
-					const container = document.createElement("div");
-					container.classList.add('af-fake-image-container');
-					try {
-						// 你的代码
-						if (next) {
-							console.log("insert before next")
-							next.insertAdjacentElement('beforebegin', container);
-						}
-					} catch (error) {
-						console.error(error);
-					}
-					
-				}
-			)
-		);
-
 		this.register(
 			onElement(
 				document,
